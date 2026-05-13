@@ -1,0 +1,528 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Product - Smart Inventory{% endblock %}
+
+{% block extra_head %}
+<style>
+    .form-section {
+        background: #f8f9fa;
+        border-left: 4px solid #007bff;
+    }
+    .price-input {
+        position: relative;
+    }
+    .price-input::before {
+        content: '$';
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #6c757d;
+        z-index: 10;
+    }
+    .price-input input {
+        padding-left: 25px;
+    }
+    .profit-preview {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        color: white;
+    }
+    .product-info {
+        background: linear-gradient(135deg, #6f42c1, #e83e8c);
+        color: white;
+    }
+    .info-card {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="fas fa-edit"></i> Edit Product</h1>
+            <a href="{{ url_for('products.admin_product_list') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Products
+            </a>
+        </div>
+
+        <!-- Current Product Info -->
+        <div class="card mb-4 product-info">
+            <div class="card-body">
+                <h5 class="card-title mb-3"><i class="fas fa-info-circle"></i> Current Product Information</h5>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="info-card rounded p-3 text-center">
+                            <h6 class="mb-1">{{ product.name }}</h6>
+                            <small>Product Name</small>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="info-card rounded p-3 text-center">
+                            <h6 class="mb-1">{{ product.category }}</h6>
+                            <small>Category</small>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="info-card rounded p-3 text-center">
+                            <h6 class="mb-1">{{ product.quantity }}</h6>
+                            <small>Current Stock</small>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="info-card rounded p-3 text-center">
+                            <h6 class="mb-1">${{ "%.2f"|format(product.selling_price) }}</h6>
+                            <small>Selling Price</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="info-card rounded p-3 text-center">
+                            <h6 class="mb-1 
+                                {% if product.is_out_of_stock() %}text-danger
+                                {% elif product.is_low_stock() %}text-warning
+                                {% else %}text-success{% endif %}">
+                                {% if product.is_out_of_stock() %}
+                                    Out of Stock
+                                {% elif product.is_low_stock() %}
+                                    Low Stock
+                                {% else %}
+                                    In Stock
+                                {% endif %}
+                            </h6>
+                            <small>Stock Status</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-box"></i> Update Product Information</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" novalidate>
+                    {{ form.hidden_tag() }}
+                    
+                    <!-- Basic Information Section -->
+                    <div class="form-section rounded p-3 mb-4">
+                        <h6 class="text-primary mb-3"><i class="fas fa-info-circle"></i> Basic Information</h6>
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    {{ form.name.label(class="form-label") }}
+                                    {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else "")) }}
+                                    {% if form.name.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.name.errors %}{{ error }}{% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    {{ form.category.label(class="form-label") }}
+                                    {{ form.category(class="form-control" + (" is-invalid" if form.category.errors else "")) }}
+                                    {% if form.category.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.category.errors %}{{ error }}{% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.description.label(class="form-label") }}
+                            {{ form.description(class="form-control", rows="3", placeholder="Optional product description...") }}
+                            {% if form.description.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.description.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Pricing Section -->
+                    <div class="form-section rounded p-3 mb-4">
+                        <h6 class="text-primary mb-3"><i class="fas fa-dollar-sign"></i> Pricing Information</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    {{ form.cost_price.label(class="form-label") }}
+                                    <div class="price-input">
+                                        {{ form.cost_price(class="form-control" + (" is-invalid" if form.cost_price.errors else ""), 
+                                                          step="0.01", min="0", id="cost_price") }}
+                                    </div>
+                                    {% if form.cost_price.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.cost_price.errors %}{{ error }}{% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    <div class="form-text">
+                                        Previous: ${{ "%.2f"|format(product.cost_price) }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    {{ form.selling_price.label(class="form-label") }}
+                                    <div class="price-input">
+                                        {{ form.selling_price(class="form-control" + (" is-invalid" if form.selling_price.errors else ""), 
+                                                             step="0.01", min="0", id="selling_price") }}
+                                    </div>
+                                    {% if form.selling_price.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.selling_price.errors %}{{ error }}{% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    <div class="form-text">
+                                        Previous: ${{ "%.2f"|format(product.selling_price) }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Profit Margin</label>
+                                    <div class="card profit-preview">
+                                        <div class="card-body text-center py-2">
+                                            <div id="profit-margin" class="h5 mb-0">{{ "%.1f"|format(product.profit_margin) }}%</div>
+                                            <small>Profit per unit: $<span id="profit-amount">{{ "%.2f"|format(product.profit_per_unit) }}</span></small>
+                                        </div>
+                                    </div>
+                                    <div class="form-text">
+                                        Previous margin: {{ "%.1f"|format(product.profit_margin) }}%
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Inventory Section -->
+                    <div class="form-section rounded p-3 mb-4">
+                        <h6 class="text-primary mb-3"><i class="fas fa-warehouse"></i> Inventory Information</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.quantity.label(class="form-label") }}
+                                    {{ form.quantity(class="form-control" + (" is-invalid" if form.quantity.errors else ""), 
+                                                    min="0") }}
+                                    {% if form.quantity.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.quantity.errors %}{{ error }}{% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    <div class="form-text">
+                                        Current stock: {{ product.quantity }} units
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.low_stock_threshold.label(class="form-label") }}
+                                    {{ form.low_stock_threshold(class="form-control" + (" is-invalid" if form.low_stock_threshold.errors else ""), 
+                                                               min="0") }}
+                                    {% if form.low_stock_threshold.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.low_stock_threshold.errors %}{{ error }}{% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    <div class="form-text">
+                                        Current threshold: {{ product.low_stock_threshold }} units
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Change Summary -->
+                    <div class="card mb-4" id="change-summary" style="display: none;">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0"><i class="fas fa-list-alt"></i> Summary of Changes</h6>
+                        </div>
+                        <div class="card-body">
+                            <ul id="changes-list" class="mb-0"></ul>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('products.admin_product_list') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <div>
+                            <button type="button" class="btn btn-outline-info me-2" onclick="previewChanges()">
+                                <i class="fas fa-eye"></i> Preview Changes
+                            </button>
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-eye"></i> Preview Changes</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-muted">Current Product</h6>
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">{{ product.name }}</h6>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted mb-2">
+                                    <i class="fas fa-tag"></i> {{ product.category }}
+                                </p>
+                                <p class="card-text">{{ product.description or "No description" }}</p>
+                                
+                                <div class="row text-center mb-3">
+                                    <div class="col-4">
+                                        <small class="text-muted">Cost</small>
+                                        <div class="fw-bold">${{ "%.2f"|format(product.cost_price) }}</div>
+                                    </div>
+                                    <div class="col-4">
+                                        <small class="text-muted">Selling</small>
+                                        <div class="fw-bold text-success">${{ "%.2f"|format(product.selling_price) }}</div>
+                                    </div>
+                                    <div class="col-4">
+                                        <small class="text-muted">Profit</small>
+                                        <div class="fw-bold text-info">{{ "%.1f"|format(product.profit_margin) }}%</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between">
+                                        <span>Stock:</span>
+                                        <span class="fw-bold">{{ product.quantity }}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span>Threshold:</span>
+                                        <span class="fw-bold">{{ product.low_stock_threshold }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-primary">Updated Product</h6>
+                        <div class="card border-primary">
+                            <div class="card-header bg-primary text-white">
+                                <h6 class="mb-0" id="preview-name">{{ product.name }}</h6>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted mb-2">
+                                    <i class="fas fa-tag"></i> <span id="preview-category">{{ product.category }}</span>
+                                </p>
+                                <p class="card-text" id="preview-description">{{ product.description or "No description" }}</p>
+                                
+                                <div class="row text-center mb-3">
+                                    <div class="col-4">
+                                        <small class="text-muted">Cost</small>
+                                        <div class="fw-bold">$<span id="preview-cost">{{ "%.2f"|format(product.cost_price) }}</span></div>
+                                    </div>
+                                    <div class="col-4">
+                                        <small class="text-muted">Selling</small>
+                                        <div class="fw-bold text-success">$<span id="preview-selling">{{ "%.2f"|format(product.selling_price) }}</span></div>
+                                    </div>
+                                    <div class="col-4">
+                                        <small class="text-muted">Profit</small>
+                                        <div class="fw-bold text-info"><span id="preview-margin">{{ "%.1f"|format(product.profit_margin) }}</span>%</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between">
+                                        <span>Stock:</span>
+                                        <span class="fw-bold" id="preview-quantity">{{ product.quantity }}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span>Threshold:</span>
+                                        <span class="fw-bold" id="preview-threshold">{{ product.low_stock_threshold }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Original values for comparison
+const originalValues = {
+    name: "{{ product.name }}",
+    category: "{{ product.category }}",
+    description: "{{ product.description or '' }}",
+    cost_price: {{ product.cost_price }},
+    selling_price: {{ product.selling_price }},
+    quantity: {{ product.quantity }},
+    low_stock_threshold: {{ product.low_stock_threshold }}
+};
+
+// Calculate profit margin in real-time
+function updateProfitCalculation() {
+    const costPrice = parseFloat(document.getElementById('cost_price').value) || 0;
+    const sellingPrice = parseFloat(document.getElementById('selling_price').value) || 0;
+    
+    let profitMargin = 0;
+    let profitAmount = 0;
+    
+    if (costPrice > 0) {
+        profitAmount = sellingPrice - costPrice;
+        profitMargin = (profitAmount / costPrice) * 100;
+    }
+    
+    document.getElementById('profit-margin').textContent = profitMargin.toFixed(1) + '%';
+    document.getElementById('profit-amount').textContent = profitAmount.toFixed(2);
+    
+    // Update color based on profit margin
+    const profitCard = document.querySelector('.profit-preview');
+    if (profitMargin < 0) {
+        profitCard.style.background = 'linear-gradient(135deg, #dc3545, #c82333)';
+    } else if (profitMargin < 20) {
+        profitCard.style.background = 'linear-gradient(135deg, #ffc107, #e0a800)';
+    } else {
+        profitCard.style.background = 'linear-gradient(135deg, #28a745, #20c997)';
+    }
+}
+
+// Track changes and show summary
+function trackChanges() {
+    const changes = [];
+    const currentValues = {
+        name: document.getElementById('name').value,
+        category: document.getElementById('category').value,
+        description: document.getElementById('description').value,
+        cost_price: parseFloat(document.getElementById('cost_price').value) || 0,
+        selling_price: parseFloat(document.getElementById('selling_price').value) || 0,
+        quantity: parseInt(document.getElementById('quantity').value) || 0,
+        low_stock_threshold: parseInt(document.getElementById('low_stock_threshold').value) || 0
+    };
+    
+    // Check for changes
+    Object.keys(originalValues).forEach(key => {
+        if (currentValues[key] !== originalValues[key]) {
+            let changeText = '';
+            switch(key) {
+                case 'name':
+                    changeText = `Product name: "${originalValues[key]}" → "${currentValues[key]}"`;
+                    break;
+                case 'category':
+                    changeText = `Category: "${originalValues[key]}" → "${currentValues[key]}"`;
+                    break;
+                case 'description':
+                    changeText = `Description updated`;
+                    break;
+                case 'cost_price':
+                    changeText = `Cost price: $${originalValues[key].toFixed(2)} → $${currentValues[key].toFixed(2)}`;
+                    break;
+                case 'selling_price':
+                    changeText = `Selling price: $${originalValues[key].toFixed(2)} → $${currentValues[key].toFixed(2)}`;
+                    break;
+                case 'quantity':
+                    changeText = `Stock quantity: ${originalValues[key]} → ${currentValues[key]}`;
+                    break;
+                case 'low_stock_threshold':
+                    changeText = `Low stock threshold: ${originalValues[key]} → ${currentValues[key]}`;
+                    break;
+            }
+            changes.push(changeText);
+        }
+    });
+    
+    // Show/hide change summary
+    const summaryDiv = document.getElementById('change-summary');
+    const changesList = document.getElementById('changes-list');
+    
+    if (changes.length > 0) {
+        changesList.innerHTML = changes.map(change => `<li>${change}</li>`).join('');
+        summaryDiv.style.display = 'block';
+    } else {
+        summaryDiv.style.display = 'none';
+    }
+}
+
+// Preview changes function
+function previewChanges() {
+    const name = document.getElementById('name').value || originalValues.name;
+    const category = document.getElementById('category').value || originalValues.category;
+    const description = document.getElementById('description').value || 'No description provided.';
+    const costPrice = parseFloat(document.getElementById('cost_price').value) || 0;
+    const sellingPrice = parseFloat(document.getElementById('selling_price').value) || 0;
+    const quantity = parseInt(document.getElementById('quantity').value) || 0;
+    const threshold = parseInt(document.getElementById('low_stock_threshold').value) || 10;
+    
+    let profitMargin = 0;
+    if (costPrice > 0) {
+        profitMargin = ((sellingPrice - costPrice) / costPrice) * 100;
+    }
+    
+    // Update preview modal
+    document.getElementById('preview-name').textContent = name;
+    document.getElementById('preview-category').textContent = category;
+    document.getElementById('preview-description').textContent = description;
+    document.getElementById('preview-cost').textContent = costPrice.toFixed(2);
+    document.getElementById('preview-selling').textContent = sellingPrice.toFixed(2);
+    document.getElementById('preview-margin').textContent = profitMargin.toFixed(1);
+    document.getElementById('preview-quantity').textContent = quantity;
+    document.getElementById('preview-threshold').textContent = threshold;
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+    modal.show();
+}
+
+// Add event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    const inputs = ['name', 'category', 'description', 'cost_price', 'selling_price', 'quantity', 'low_stock_threshold'];
+    
+    inputs.forEach(inputId => {
+        const input = document.getElementById(inputId);
+        if (input) {
+            input.addEventListener('input', () => {
+                if (inputId === 'cost_price' || inputId === 'selling_price') {
+                    updateProfitCalculation();
+                }
+                trackChanges();
+            });
+        }
+    });
+    
+    // Initial calculation and tracking
+    updateProfitCalculation();
+    trackChanges();
+});
+
+// Form validation enhancement
+document.querySelector('form').addEventListener('submit', function(e) {
+    const costPrice = parseFloat(document.getElementById('cost_price').value) || 0;
+    const sellingPrice = parseFloat(document.getElementById('selling_price').value) || 0;
+    
+    if (sellingPrice < costPrice) {
+        e.preventDefault();
+        alert('Selling price cannot be less than cost price. Please adjust your pricing.');
+        return false;
+    }
+});
+</script>
+{% endblock %}

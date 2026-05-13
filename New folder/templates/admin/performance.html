@@ -1,0 +1,400 @@
+{% extends "base.html" %}
+
+{% block title %}Performance Dashboard - Smart Inventory System{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/performance-optimizations.css') }}">
+<style>
+.performance-metric {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-left: 4px solid #007bff;
+}
+
+.performance-metric.warning {
+    border-left-color: #ffc107;
+    background: #fff3cd;
+}
+
+.performance-metric.danger {
+    border-left-color: #dc3545;
+    background: #f8d7da;
+}
+
+.performance-metric.success {
+    border-left-color: #28a745;
+    background: #d4edda;
+}
+
+.metric-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.metric-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.optimization-button {
+    margin: 0.25rem;
+}
+
+.health-score {
+    font-size: 3rem;
+    font-weight: bold;
+    text-align: center;
+}
+
+.health-score.excellent { color: #28a745; }
+.health-score.good { color: #17a2b8; }
+.health-score.fair { color: #ffc107; }
+.health-score.poor { color: #dc3545; }
+
+.recommendation-item {
+    background: #e9ecef;
+    border-radius: 4px;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    border-left: 3px solid #007bff;
+}
+
+.recommendation-item.high-priority {
+    border-left-color: #dc3545;
+    background: #f8d7da;
+}
+
+.recommendation-item.medium-priority {
+    border-left-color: #ffc107;
+    background: #fff3cd;
+}
+
+.recommendation-item.low-priority {
+    border-left-color: #28a745;
+    background: #d4edda;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">Performance Dashboard</h1>
+                <div>
+                    <button class="btn btn-primary optimization-button" onclick="optimizePerformance('cache')">
+                        <i class="fas fa-memory"></i> Optimize Cache
+                    </button>
+                    <button class="btn btn-info optimization-button" onclick="optimizePerformance('database')">
+                        <i class="fas fa-database"></i> Optimize Database
+                    </button>
+                    <button class="btn btn-success optimization-button" onclick="optimizePerformance('all')">
+                        <i class="fas fa-rocket"></i> Optimize All
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Overview -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="health-score {{ 'excellent' if cache_health.health_score >= 90 else 'good' if cache_health.health_score >= 75 else 'fair' if cache_health.health_score >= 50 else 'poor' }}">
+                        {{ cache_health.health_score }}
+                    </div>
+                    <div class="metric-label">Cache Health Score</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="performance-metric">
+                <div class="metric-value">{{ cache_health.cache_stats.total_entries }}</div>
+                <div class="metric-label">Cache Entries</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="performance-metric">
+                <div class="metric-value">{{ "%.1f"|format(cache_health.estimated_hit_rate * 100) }}%</div>
+                <div class="metric-label">Estimated Hit Rate</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="performance-metric">
+                <div class="metric-value">{{ "%.1f"|format(cache_health.cache_stats.memory_usage_estimate / 1024 / 1024) }}MB</div>
+                <div class="metric-label">Cache Memory Usage</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Database Performance -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Database Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for key, value in performance_report.database_stats.items() %}
+                        {% if not key.startswith('error') %}
+                        <div class="col-md-6 mb-3">
+                            <div class="performance-metric">
+                                <div class="metric-value">
+                                    {% if 'size_mb' in key %}
+                                        {{ "%.1f"|format(value) }}MB
+                                    {% elif 'count' in key %}
+                                        {{ "{:,}".format(value) }}
+                                    {% else %}
+                                        {{ value }}
+                                    {% endif %}
+                                </div>
+                                <div class="metric-label">{{ key.replace('_', ' ').title() }}</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Cache Performance</h5>
+                </div>
+                <div class="card-body">
+                    {% if cache_health.issues %}
+                    <div class="alert alert-warning">
+                        <h6>Issues Detected:</h6>
+                        <ul class="mb-0">
+                            {% for issue in cache_health.issues %}
+                            <li>{{ issue }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i> Cache is performing optimally
+                    </div>
+                    {% endif %}
+                    
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="performance-metric">
+                                <div class="metric-value">
+                                    {% if cache_health.cache_stats.oldest_entry %}
+                                        {{ cache_health.cache_stats.oldest_entry.strftime('%H:%M') }}
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </div>
+                                <div class="metric-label">Oldest Entry</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="performance-metric">
+                                <div class="metric-value">
+                                    {% if cache_health.cache_stats.newest_entry %}
+                                        {{ cache_health.cache_stats.newest_entry.strftime('%H:%M') }}
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </div>
+                                <div class="metric-label">Newest Entry</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recommendations -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Performance Recommendations</h5>
+                </div>
+                <div class="card-body">
+                    {% if performance_report.recommendations or cache_health.recommendations %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>System Recommendations</h6>
+                            {% for rec in performance_report.recommendations %}
+                            <div class="recommendation-item {{ rec.priority }}-priority">
+                                <strong>{{ rec.type.title() }}:</strong> {{ rec.message }}
+                                {% if rec.action %}
+                                <br><small class="text-muted">Action: {{ rec.action }}</small>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Cache Recommendations</h6>
+                            {% for rec in cache_health.recommendations %}
+                            <div class="recommendation-item low-priority">
+                                {{ rec }}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-success">
+                        <i class="fas fa-thumbs-up"></i> No performance issues detected. System is running optimally!
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Optimization Status -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Optimization Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for key, value in performance_report.optimization_status.items() %}
+                        <div class="col-md-4 mb-3">
+                            <div class="performance-metric {{ 'success' if value else 'warning' }}">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas {{ 'fa-check-circle text-success' if value else 'fa-exclamation-triangle text-warning' }} me-2"></i>
+                                    <div>
+                                        <div class="metric-label mb-1">{{ key.replace('_', ' ').title() }}</div>
+                                        <div class="small">{{ 'Enabled' if value else 'Disabled' }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Optimization Progress Modal -->
+<div class="modal fade" id="optimizationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Performance Optimization</h5>
+            </div>
+            <div class="modal-body">
+                <div class="text-center">
+                    <div class="loading-spinner mb-3"></div>
+                    <p id="optimizationStatus">Optimizing performance...</p>
+                </div>
+                <div class="progress mb-3" style="display: none;">
+                    <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                </div>
+                <div id="optimizationResults" style="display: none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/performance-optimizations.js') }}"></script>
+<script>
+async function optimizePerformance(type) {
+    const modal = new bootstrap.Modal(document.getElementById('optimizationModal'));
+    const statusElement = document.getElementById('optimizationStatus');
+    const resultsElement = document.getElementById('optimizationResults');
+    
+    // Reset modal state
+    statusElement.textContent = `Optimizing ${type}...`;
+    resultsElement.style.display = 'none';
+    resultsElement.innerHTML = '';
+    
+    modal.show();
+    
+    try {
+        const response = await fetch('/api/admin/performance/optimize', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ type: type })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            statusElement.textContent = 'Optimization completed successfully!';
+            
+            // Show results
+            let resultsHtml = '<div class="alert alert-success">Optimization completed successfully!</div>';
+            
+            if (result.results) {
+                resultsHtml += '<h6>Results:</h6><ul>';
+                for (const [key, value] of Object.entries(result.results)) {
+                    resultsHtml += `<li><strong>${key.replace('_', ' ').toUpperCase()}:</strong> ${typeof value === 'boolean' ? (value ? 'Success' : 'Failed') : JSON.stringify(value)}</li>`;
+                }
+                resultsHtml += '</ul>';
+            }
+            
+            resultsElement.innerHTML = resultsHtml;
+            resultsElement.style.display = 'block';
+            
+            // Refresh page after 3 seconds
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
+            
+        } else {
+            statusElement.textContent = 'Optimization failed!';
+            resultsElement.innerHTML = `<div class="alert alert-danger">Error: ${result.error}</div>`;
+            resultsElement.style.display = 'block';
+        }
+        
+    } catch (error) {
+        statusElement.textContent = 'Optimization failed!';
+        resultsElement.innerHTML = `<div class="alert alert-danger">Network error: ${error.message}</div>`;
+        resultsElement.style.display = 'block';
+    }
+}
+
+// Auto-refresh performance metrics every 30 seconds
+setInterval(() => {
+    if (!document.getElementById('optimizationModal').classList.contains('show')) {
+        // Only refresh if modal is not open
+        fetch(window.location.href)
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const newDoc = parser.parseFromString(html, 'text/html');
+                
+                // Update performance metrics
+                const metricsElements = document.querySelectorAll('.metric-value');
+                const newMetricsElements = newDoc.querySelectorAll('.metric-value');
+                
+                metricsElements.forEach((element, index) => {
+                    if (newMetricsElements[index]) {
+                        element.textContent = newMetricsElements[index].textContent;
+                    }
+                });
+            })
+            .catch(error => console.error('Failed to refresh metrics:', error));
+    }
+}, 30000);
+</script>
+{% endblock %}

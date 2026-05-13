@@ -1,0 +1,518 @@
+{% extends "base.html" %}
+
+{% block title %}Notification Preferences - Smart Inventory{% endblock %}
+
+{% block extra_css %}
+<style>
+    .preference-section {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border-left: 4px solid #007bff;
+    }
+    
+    .preference-item {
+        display: flex;
+        justify-content: between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .preference-item:last-child {
+        border-bottom: none;
+    }
+    
+    .preference-description {
+        flex-grow: 1;
+        margin-right: 1rem;
+    }
+    
+    .preference-title {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.25rem;
+    }
+    
+    .preference-subtitle {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin: 0;
+    }
+    
+    .form-switch {
+        padding-left: 2.5em;
+    }
+    
+    .form-switch .form-check-input {
+        width: 2em;
+        margin-left: -2.5em;
+    }
+    
+    .time-input {
+        width: 120px;
+    }
+    
+    .severity-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.375rem;
+    }
+    
+    .test-section {
+        background-color: #e7f3ff;
+        border: 1px solid #b3d9ff;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .save-indicator {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1050;
+        min-width: 200px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-0">Notification Preferences</h1>
+                    <p class="text-muted mb-0">Manage how and when you receive notifications</p>
+                </div>
+                <div>
+                    <button class="btn btn-outline-primary" onclick="testEmailNotification()">
+                        <i class="fas fa-envelope"></i> Test Email
+                    </button>
+                    <button class="btn btn-primary" onclick="savePreferences()">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Email Notifications Section -->
+            <div class="preference-section">
+                <h4 class="mb-3">
+                    <i class="fas fa-envelope text-primary"></i> Email Notifications
+                </h4>
+                
+                <div class="preference-item">
+                    <div class="preference-description">
+                        <div class="preference-title">Enable Email Notifications</div>
+                        <p class="preference-subtitle">Receive notifications via email</p>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="emailNotifications" 
+                               {% if preferences.email_notifications %}checked{% endif %}>
+                    </div>
+                </div>
+                
+                <div class="preference-item">
+                    <div class="preference-description">
+                        <div class="preference-title">Low Stock Alerts</div>
+                        <p class="preference-subtitle">Get notified when products are running low</p>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="lowStockAlerts" 
+                               {% if preferences.low_stock_alerts %}checked{% endif %}>
+                    </div>
+                </div>
+                
+                <div class="preference-item">
+                    <div class="preference-description">
+                        <div class="preference-title">Out of Stock Alerts</div>
+                        <p class="preference-subtitle">Get urgent notifications when products are out of stock</p>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="outOfStockAlerts" 
+                               {% if preferences.out_of_stock_alerts %}checked{% endif %}>
+                    </div>
+                </div>
+                
+                <div class="preference-item">
+                    <div class="preference-description">
+                        <div class="preference-title">Daily Summary</div>
+                        <p class="preference-subtitle">Receive daily inventory summary emails</p>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <div class="form-check form-switch me-3">
+                            <input class="form-check-input" type="checkbox" id="dailySummary" 
+                                   {% if preferences.daily_summary %}checked{% endif %}>
+                        </div>
+                        <div>
+                            <label for="dailySummaryTime" class="form-label mb-0 me-2">Time:</label>
+                            <input type="time" class="form-control time-input" id="dailySummaryTime" 
+                                   value="{{ preferences.daily_summary_time }}">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="preference-item">
+                    <div class="preference-description">
+                        <div class="preference-title">Weekly Summary</div>
+                        <p class="preference-subtitle">Receive weekly inventory reports</p>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <div class="form-check form-switch me-3">
+                            <input class="form-check-input" type="checkbox" id="weeklySummary" 
+                                   {% if preferences.weekly_summary %}checked{% endif %}>
+                        </div>
+                        <div>
+                            <label for="weeklySummaryDay" class="form-label mb-0 me-2">Day:</label>
+                            <select class="form-select" id="weeklySummaryDay" style="width: 120px;">
+                                <option value="1" {% if preferences.weekly_summary_day == 1 %}selected{% endif %}>Monday</option>
+                                <option value="2" {% if preferences.weekly_summary_day == 2 %}selected{% endif %}>Tuesday</option>
+                                <option value="3" {% if preferences.weekly_summary_day == 3 %}selected{% endif %}>Wednesday</option>
+                                <option value="4" {% if preferences.weekly_summary_day == 4 %}selected{% endif %}>Thursday</option>
+                                <option value="5" {% if preferences.weekly_summary_day == 5 %}selected{% endif %}>Friday</option>
+                                <option value="6" {% if preferences.weekly_summary_day == 6 %}selected{% endif %}>Saturday</option>
+                                <option value="7" {% if preferences.weekly_summary_day == 7 %}selected{% endif %}>Sunday</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- In-App Notifications Section -->
+            <div class="preference-section">
+                <h4 class="mb-3">
+                    <i class="fas fa-bell text-warning"></i> In-App Notifications
+                </h4>
+                
+                <div class="preference-item">
+                    <div class="preference-description">
+                        <div class="preference-title">Enable In-App Notifications</div>
+                        <p class="preference-subtitle">Show notifications within the application</p>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="inAppNotifications" 
+                               {% if preferences.in_app_notifications %}checked{% endif %}>
+                    </div>
+                </div>
+                
+                <div class="preference-item">
+                    <div class="preference-description">
+                        <div class="preference-title">Browser Notifications</div>
+                        <p class="preference-subtitle">Show desktop notifications in your browser</p>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="browserNotifications" 
+                               {% if preferences.browser_notifications %}checked{% endif %}>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alert Settings Section -->
+            <div class="preference-section">
+                <h4 class="mb-3">
+                    <i class="fas fa-cog text-secondary"></i> Alert Settings
+                </h4>
+                
+                <div class="preference-item">
+                    <div class="preference-description">
+                        <div class="preference-title">Minimum Alert Severity</div>
+                        <p class="preference-subtitle">Only receive alerts at or above this severity level</p>
+                    </div>
+                    <div>
+                        <select class="form-select" id="minAlertSeverity" style="width: 150px;">
+                            <option value="info" {% if preferences.min_alert_severity == 'info' %}selected{% endif %}>
+                                <span class="severity-badge bg-info">Info</span> All alerts
+                            </option>
+                            <option value="warning" {% if preferences.min_alert_severity == 'warning' %}selected{% endif %}>
+                                <span class="severity-badge bg-warning">Warning</span> Warning & Critical
+                            </option>
+                            <option value="critical" {% if preferences.min_alert_severity == 'critical' %}selected{% endif %}>
+                                <span class="severity-badge bg-danger">Critical</span> Critical only
+                            </option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="preference-item">
+                    <div class="preference-description">
+                        <div class="preference-title">Alert Frequency Limit</div>
+                        <p class="preference-subtitle">Maximum alerts per product per day</p>
+                    </div>
+                    <div>
+                        <input type="number" class="form-control" id="alertFrequencyLimit" 
+                               value="{{ preferences.alert_frequency_limit }}" min="1" max="10" style="width: 80px;">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Test Notifications Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-vial"></i> Test Notifications
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Test your notification settings to ensure they're working correctly.</p>
+                    
+                    <div class="test-section">
+                        <h6>Email Test</h6>
+                        <p class="small mb-2">Send a test email notification to verify your email settings.</p>
+                        <div class="mb-2">
+                            <input type="email" class="form-control" id="testEmailAddress" 
+                                   placeholder="Enter email address" value="{{ current_user.email }}">
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary w-100" onclick="testEmailNotification()">
+                            <i class="fas fa-paper-plane"></i> Send Test Email
+                        </button>
+                    </div>
+                    
+                    <div class="test-section">
+                        <h6>Daily Summary Test</h6>
+                        <p class="small mb-2">Send a sample daily summary email.</p>
+                        <button class="btn btn-sm btn-outline-info w-100" onclick="testDailySummary()">
+                            <i class="fas fa-calendar-day"></i> Send Test Summary
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notification Statistics -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar"></i> Notification Statistics
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="border-end">
+                                <h4 class="text-primary mb-0" id="notificationsToday">-</h4>
+                                <small class="text-muted">Today</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="text-info mb-0" id="notificationsWeek">-</h4>
+                            <small class="text-muted">This Week</small>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small">Delivery Rate</span>
+                        <span class="badge bg-success" id="deliveryRate">-</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="small">Open Rate</span>
+                        <span class="badge bg-info" id="openRate">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Save Indicator -->
+<div class="save-indicator" id="saveIndicator" style="display: none;">
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="fas fa-check-circle"></i> Preferences saved successfully!
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let preferencesChanged = false;
+
+// Track changes to form elements
+document.addEventListener('DOMContentLoaded', function() {
+    // Add change listeners to all form elements
+    const formElements = document.querySelectorAll('input, select');
+    formElements.forEach(element => {
+        element.addEventListener('change', function() {
+            preferencesChanged = true;
+        });
+    });
+    
+    // Load notification statistics
+    loadNotificationStats();
+});
+
+function savePreferences() {
+    const preferences = {
+        email_notifications: document.getElementById('emailNotifications').checked,
+        low_stock_alerts: document.getElementById('lowStockAlerts').checked,
+        out_of_stock_alerts: document.getElementById('outOfStockAlerts').checked,
+        daily_summary: document.getElementById('dailySummary').checked,
+        weekly_summary: document.getElementById('weeklySummary').checked,
+        in_app_notifications: document.getElementById('inAppNotifications').checked,
+        browser_notifications: document.getElementById('browserNotifications').checked,
+        daily_summary_time: document.getElementById('dailySummaryTime').value,
+        weekly_summary_day: parseInt(document.getElementById('weeklySummaryDay').value),
+        min_alert_severity: document.getElementById('minAlertSeverity').value,
+        alert_frequency_limit: parseInt(document.getElementById('alertFrequencyLimit').value)
+    };
+    
+    fetch('/notifications/api/preferences', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(preferences)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSaveIndicator();
+            preferencesChanged = false;
+        } else {
+            showAlert('Error saving preferences: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showAlert('Error saving preferences: ' + error.message, 'error');
+    });
+}
+
+function testEmailNotification() {
+    const emailAddress = document.getElementById('testEmailAddress').value;
+    
+    if (!emailAddress) {
+        showAlert('Please enter an email address', 'warning');
+        return;
+    }
+    
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+    button.disabled = true;
+    
+    fetch('/notifications/api/test-email', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            recipient: emailAddress
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Test email sent successfully!', 'success');
+        } else {
+            showAlert('Error sending test email: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showAlert('Error sending test email: ' + error.message, 'error');
+    })
+    .finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+function testDailySummary() {
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+    button.disabled = true;
+    
+    fetch('/notifications/api/send-daily-summary', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            recipients: [document.getElementById('testEmailAddress').value]
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Test daily summary sent successfully!', 'success');
+        } else {
+            showAlert('Error sending daily summary: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showAlert('Error sending daily summary: ' + error.message, 'error');
+    })
+    .finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+function loadNotificationStats() {
+    // This would load actual statistics in a real implementation
+    document.getElementById('notificationsToday').textContent = '5';
+    document.getElementById('notificationsWeek').textContent = '23';
+    document.getElementById('deliveryRate').textContent = '98.5%';
+    document.getElementById('openRate').textContent = '76.3%';
+}
+
+function showSaveIndicator() {
+    const indicator = document.getElementById('saveIndicator');
+    indicator.style.display = 'block';
+    
+    setTimeout(() => {
+        indicator.style.display = 'none';
+    }, 3000);
+}
+
+function showAlert(message, type) {
+    // Create and show a toast notification
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 5000);
+}
+
+// Warn user about unsaved changes
+window.addEventListener('beforeunload', function(e) {
+    if (preferencesChanged) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
+
+// Request browser notification permission if enabled
+document.getElementById('browserNotifications').addEventListener('change', function() {
+    if (this.checked && 'Notification' in window) {
+        if (Notification.permission === 'default') {
+            Notification.requestPermission().then(function(permission) {
+                if (permission !== 'granted') {
+                    document.getElementById('browserNotifications').checked = false;
+                    showAlert('Browser notification permission denied', 'warning');
+                }
+            });
+        } else if (Notification.permission === 'denied') {
+            this.checked = false;
+            showAlert('Browser notifications are blocked. Please enable them in your browser settings.', 'warning');
+        }
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,16 @@
+Smart Inventory System - Optimization Report
+Generated: 2025-10-16 18:40:53
+
+Database Statistics:
+  users_count: 2
+  products_count: 0
+  purchase_requests_count: 0
+  sales_count: 0
+  ai_predictions_count: 0
+  alerts_count: 0
+  database_size_bytes: 122880
+  database_size_mb: 0.1171875
+
+Cache Health Score: 100/100
+Cache Entries: 14
+Memory Usage: 0.0 MB

@@ -1,0 +1,1140 @@
+{% extends "base.html" %}
+
+{% block title %}AI Restocking Suggestions - Smart Inventory System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .suggestion-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        border-left: 4px solid transparent;
+    }
+    .suggestion-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .suggestion-card.urgency-critical {
+        border-left-color: #dc3545;
+    }
+    .suggestion-card.urgency-high {
+        border-left-color: #fd7e14;
+    }
+    .suggestion-card.urgency-medium {
+        border-left-color: #ffc107;
+    }
+    .suggestion-card.urgency-low {
+        border-left-color: #28a745;
+    }
+    .confidence-bar {
+        height: 6px;
+        border-radius: 3px;
+        background-color: #e9ecef;
+        overflow: hidden;
+    }
+    .confidence-fill {
+        height: 100%;
+        transition: width 0.3s ease;
+    }
+    .confidence-high { background-color: #28a745; }
+    .confidence-medium { background-color: #ffc107; }
+    .confidence-low { background-color: #dc3545; }
+    .metric-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.375rem;
+    }
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+    }
+    .filter-section {
+        background: #f8f9fa;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .seasonal-indicator {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 0.5rem;
+    }
+    .seasonal-increase { background-color: #dc3545; }
+    .seasonal-decrease { background-color: #28a745; }
+    .seasonal-none { background-color: #6c757d; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2><i class="fas fa-robot"></i> AI Restocking Suggestions</h2>
+                    <p class="text-muted mb-0">Intelligent inventory recommendations powered by machine learning</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-info" onclick="showModelInfo()">
+                        <i class="fas fa-info-circle"></i> Model Info
+                    </button>
+                    <button class="btn btn-outline-warning" onclick="retrainModel()">
+                        <i class="fas fa-sync-alt"></i> Retrain Model
+                    </button>
+                    <button class="btn btn-primary" onclick="refreshSuggestions()">
+                        <i class="fas fa-refresh"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Model Status and Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-subtitle mb-2 text-muted">AI Model Status</h6>
+                            <h5 class="card-title mb-0" id="modelStatus">
+                                <span class="badge bg-success">Active</span>
+                            </h5>
+                            <small class="text-muted" id="modelVersion">Version 1.0</small>
+                        </div>
+                        <div class="text-success">
+                            <i class="fas fa-brain fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-subtitle mb-2 text-muted">Total Suggestions</h6>
+                            <h3 class="card-title mb-0" id="totalSuggestions">0</h3>
+                            <small class="text-info" id="highConfidenceCount">
+                                <i class="fas fa-check-circle"></i> 0 high confidence
+                            </small>
+                        </div>
+                        <div class="text-primary">
+                            <i class="fas fa-lightbulb fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-subtitle mb-2 text-muted">Critical Items</h6>
+                            <h3 class="card-title mb-0" id="criticalCount">0</h3>
+                            <small class="text-danger" id="outOfStockCount">
+                                <i class="fas fa-exclamation-triangle"></i> 0 out of stock
+                            </small>
+                        </div>
+                        <div class="text-danger">
+                            <i class="fas fa-exclamation-triangle fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-subtitle mb-2 text-muted">Total Investment</h6>
+                            <h3 class="card-title mb-0" id="totalInvestment">$0.00</h3>
+                            <small class="text-success" id="potentialRevenue">
+                                <i class="fas fa-dollar-sign"></i> $0 potential revenue
+                            </small>
+                        </div>
+                        <div class="text-warning">
+                            <i class="fas fa-coins fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and Controls -->
+    <div class="filter-section">
+        <div class="row align-items-end">
+            <div class="col-md-3">
+                <label for="confidenceFilter" class="form-label">Minimum Confidence</label>
+                <select id="confidenceFilter" class="form-select">
+                    <option value="0.5">50% and above</option>
+                    <option value="0.6" selected>60% and above</option>
+                    <option value="0.7">70% and above</option>
+                    <option value="0.8">80% and above</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="urgencyFilter" class="form-label">Urgency Level</label>
+                <select id="urgencyFilter" class="form-select">
+                    <option value="">All Levels</option>
+                    <option value="critical">Critical Only</option>
+                    <option value="high">High & Critical</option>
+                    <option value="medium">Medium & Above</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="budgetLimit" class="form-label">Budget Limit ($)</label>
+                <input type="number" id="budgetLimit" class="form-control" placeholder="No limit" min="0" step="100">
+            </div>
+            <div class="col-md-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="includeSeasonalAnalysis" checked>
+                    <label class="form-check-label" for="includeSeasonalAnalysis">
+                        Include Seasonal Analysis
+                    </label>
+                </div>
+                <button class="btn btn-outline-primary w-100 mt-2" onclick="applyFilters()">
+                    <i class="fas fa-filter"></i> Apply Filters
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs for Different Views -->
+    <ul class="nav nav-tabs mb-4" id="suggestionTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="all-suggestions-tab" data-bs-toggle="tab" data-bs-target="#all-suggestions" type="button" role="tab">
+                <i class="fas fa-list"></i> All Suggestions
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="critical-tab" data-bs-toggle="tab" data-bs-target="#critical-items" type="button" role="tab">
+                <i class="fas fa-exclamation-triangle"></i> Critical Items
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="seasonal-tab" data-bs-toggle="tab" data-bs-target="#seasonal-analysis" type="button" role="tab">
+                <i class="fas fa-calendar-alt"></i> Seasonal Analysis
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="supplier-tab" data-bs-toggle="tab" data-bs-target="#supplier-optimization" type="button" role="tab">
+                <i class="fas fa-truck"></i> Supplier Optimization
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="suggestionTabContent">
+        <!-- All Suggestions Tab -->
+        <div class="tab-pane fade show active" id="all-suggestions" role="tabpanel">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm position-relative">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-robot"></i> AI Recommendations
+                            </h5>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-success" onclick="exportSuggestions()">
+                                    <i class="fas fa-download"></i> Export
+                                </button>
+                                <button class="btn btn-sm btn-outline-primary" onclick="bulkApprove()">
+                                    <i class="fas fa-check-double"></i> Bulk Approve
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="suggestionsContainer" class="row">
+                                <!-- Suggestions will be loaded here -->
+                                <div class="col-12 text-center py-5">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading suggestions...</span>
+                                    </div>
+                                    <p class="mt-2 text-muted">Loading AI suggestions...</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="loading-overlay d-none" id="suggestionsLoading">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Critical Items Tab -->
+        <div class="tab-pane fade" id="critical-items" role="tabpanel">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-white">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-exclamation-triangle text-danger"></i> Critical Restocking Needs
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="criticalItemsContainer">
+                                <!-- Critical items will be loaded here -->
+                                <div class="text-center py-5">
+                                    <div class="spinner-border text-danger" role="status">
+                                        <span class="visually-hidden">Loading critical items...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Seasonal Analysis Tab -->
+        <div class="tab-pane fade" id="seasonal-analysis" role="tabpanel">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-white">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-calendar-alt text-info"></i> Seasonal Restocking Analysis
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="seasonalAnalysisContainer">
+                                <!-- Seasonal analysis will be loaded here -->
+                                <div class="text-center py-5">
+                                    <div class="spinner-border text-info" role="status">
+                                        <span class="visually-hidden">Loading seasonal analysis...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Supplier Optimization Tab -->
+        <div class="tab-pane fade" id="supplier-optimization" role="tabpanel">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-white">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-truck text-warning"></i> Supplier Optimization
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="supplierOptimizationContainer">
+                                <!-- Supplier optimization will be loaded here -->
+                                <div class="text-center py-5">
+                                    <div class="spinner-border text-warning" role="status">
+                                        <span class="visually-hidden">Loading supplier optimization...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modals -->
+
+<!-- Model Information Modal -->
+<div class="modal fade" id="modelInfoModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-brain"></i> AI Model Information
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modelInfoContent">
+                <!-- Model info will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Suggestion Details Modal -->
+<div class="modal fade" id="suggestionDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-info-circle"></i> Suggestion Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="suggestionDetailsContent">
+                <!-- Suggestion details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-success" onclick="approveSuggestion()">
+                    <i class="fas fa-check"></i> Approve Order
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Training Modal -->
+<div class="modal fade" id="trainingModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-cog"></i> Model Training
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="trainingContent">
+                <div class="text-center">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Training model...</span>
+                    </div>
+                    <p>Training AI model with latest data...</p>
+                    <p class="text-muted">This may take a few moments.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Error Modal -->
+<div class="modal fade" id="errorModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger">
+                    <i class="fas fa-exclamation-triangle"></i> Error
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="errorMessage">
+                An error occurred while processing your request.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="refreshSuggestions()">Retry</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentSuggestions = [];
+let selectedSuggestion = null;
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    initializeAISuggestions();
+    
+    // Tab change handlers
+    document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
+        tab.addEventListener('shown.bs.tab', function(event) {
+            const targetTab = event.target.getAttribute('data-bs-target');
+            loadTabContent(targetTab);
+        });
+    });
+});
+
+function initializeAISuggestions() {
+    loadAIStatus();
+    loadSuggestions();
+}
+
+function loadAIStatus() {
+    fetch('/api/admin/ai/status')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateAIStatus(data.data);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading AI status:', error);
+        });
+}
+
+function updateAIStatus(status) {
+    const statusElement = document.getElementById('modelStatus');
+    const versionElement = document.getElementById('modelVersion');
+    
+    if (status.model_loaded) {
+        statusElement.innerHTML = '<span class="badge bg-success">Active</span>';
+    } else {
+        statusElement.innerHTML = '<span class="badge bg-warning">Not Loaded</span>';
+    }
+    
+    versionElement.textContent = `Version ${status.model_version}`;
+}
+
+function loadSuggestions() {
+    showLoadingState('suggestionsLoading');
+    
+    const minConfidence = document.getElementById('confidenceFilter').value;
+    const budgetLimit = document.getElementById('budgetLimit').value;
+    const includeSeasonal = document.getElementById('includeSeasonalAnalysis').checked;
+    
+    let url = `/api/admin/ai/suggestions?min_confidence=${minConfidence}&include_seasonal=${includeSeasonal}`;
+    if (budgetLimit) {
+        url += `&budget_limit=${budgetLimit}`;
+    }
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            hideLoadingState('suggestionsLoading');
+            if (data.success) {
+                currentSuggestions = data.data.suggestions;
+                updateSummaryStats(data.data);
+                renderSuggestions(data.data.suggestions);
+            } else {
+                showError('Failed to load suggestions: ' + data.error);
+            }
+        })
+        .catch(error => {
+            hideLoadingState('suggestionsLoading');
+            console.error('Error loading suggestions:', error);
+            showError('Failed to load AI suggestions');
+        });
+}
+
+function updateSummaryStats(data) {
+    document.getElementById('totalSuggestions').textContent = data.suggestions.length;
+    document.getElementById('totalInvestment').textContent = '$' + data.total_investment.toLocaleString('en-US', {minimumFractionDigits: 2});
+    
+    const highConfidenceCount = data.suggestions.filter(s => s.confidence_score > 0.8).length;
+    document.getElementById('highConfidenceCount').innerHTML = 
+        `<i class="fas fa-check-circle"></i> ${highConfidenceCount} high confidence`;
+    
+    const criticalCount = data.suggestions.filter(s => s.urgency_level === 'critical').length;
+    document.getElementById('criticalCount').textContent = criticalCount;
+    
+    const potentialRevenue = data.suggestions.reduce((sum, s) => sum + (s.revenue_potential || 0), 0);
+    document.getElementById('potentialRevenue').innerHTML = 
+        `<i class="fas fa-dollar-sign"></i> $${potentialRevenue.toLocaleString()} potential revenue`;
+}
+
+function renderSuggestions(suggestions) {
+    const container = document.getElementById('suggestionsContainer');
+    
+    if (suggestions.length === 0) {
+        container.innerHTML = `
+            <div class="col-12 text-center py-5">
+                <i class="fas fa-robot fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No suggestions available</h5>
+                <p class="text-muted">Try adjusting your filters or check back later.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    suggestions.forEach(suggestion => {
+        const confidenceClass = suggestion.confidence_score >= 0.8 ? 'confidence-high' : 
+                               suggestion.confidence_score >= 0.6 ? 'confidence-medium' : 'confidence-low';
+        
+        const seasonalIndicator = suggestion.seasonal_adjustment === 'increase' ? 'seasonal-increase' :
+                                 suggestion.seasonal_adjustment === 'decrease' ? 'seasonal-decrease' : 'seasonal-none';
+        
+        html += `
+            <div class="col-lg-6 col-xl-4 mb-3">
+                <div class="card suggestion-card urgency-${suggestion.urgency_level} h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h6 class="card-title mb-0">${suggestion.product_name}</h6>
+                            <span class="badge bg-${getUrgencyColor(suggestion.urgency_level)} metric-badge">
+                                ${suggestion.urgency_level.toUpperCase()}
+                            </span>
+                        </div>
+                        
+                        <p class="text-muted small mb-2">${suggestion.category}</p>
+                        
+                        <div class="row text-center mb-3">
+                            <div class="col-4">
+                                <div class="fw-bold">${suggestion.current_stock}</div>
+                                <small class="text-muted">Current</small>
+                            </div>
+                            <div class="col-4">
+                                <div class="fw-bold text-primary">${suggestion.suggested_quantity}</div>
+                                <small class="text-muted">Suggested</small>
+                            </div>
+                            <div class="col-4">
+                                <div class="fw-bold text-success">$${suggestion.cost_estimate.toFixed(0)}</div>
+                                <small class="text-muted">Cost</small>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <small class="text-muted">Confidence</small>
+                                <small class="fw-bold">${(suggestion.confidence_score * 100).toFixed(0)}%</small>
+                            </div>
+                            <div class="confidence-bar">
+                                <div class="confidence-fill ${confidenceClass}" 
+                                     style="width: ${suggestion.confidence_score * 100}%"></div>
+                            </div>
+                        </div>
+                        
+                        ${suggestion.seasonal_adjustment !== 'none' ? `
+                            <div class="mb-2">
+                                <small class="text-muted">
+                                    <span class="seasonal-indicator ${seasonalIndicator}"></span>
+                                    Seasonal ${suggestion.seasonal_adjustment}
+                                </small>
+                            </div>
+                        ` : ''}
+                        
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-info flex-fill" 
+                                    onclick="showSuggestionDetails(${JSON.stringify(suggestion).replace(/"/g, '&quot;')})">
+                                <i class="fas fa-info-circle"></i> Details
+                            </button>
+                            <button class="btn btn-sm btn-success" 
+                                    onclick="quickApprove(${suggestion.product_id}, ${suggestion.suggested_quantity})">
+                                <i class="fas fa-check"></i> Approve
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function loadTabContent(targetTab) {
+    switch(targetTab) {
+        case '#critical-items':
+            loadCriticalItems();
+            break;
+        case '#seasonal-analysis':
+            loadSeasonalAnalysis();
+            break;
+        case '#supplier-optimization':
+            loadSupplierOptimization();
+            break;
+    }
+}
+
+function loadCriticalItems() {
+    const container = document.getElementById('criticalItemsContainer');
+    container.innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border text-danger" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    `;
+    
+    fetch('/api/admin/ai/critical-restocks')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderCriticalItems(data.data.critical_items);
+                document.getElementById('outOfStockCount').innerHTML = 
+                    `<i class="fas fa-exclamation-triangle"></i> ${data.data.out_of_stock} out of stock`;
+            } else {
+                showError('Failed to load critical items: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading critical items:', error);
+            showError('Failed to load critical items');
+        });
+}
+
+function renderCriticalItems(items) {
+    const container = document.getElementById('criticalItemsContainer');
+    
+    if (items.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                <h5 class="text-success">No Critical Items</h5>
+                <p class="text-muted">All products have adequate stock levels.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '<div class="table-responsive"><table class="table table-hover">';
+    html += `
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Category</th>
+                <th>Current Stock</th>
+                <th>Avg Daily Demand</th>
+                <th>Days Until Empty</th>
+                <th>Urgency</th>
+                <th>Suggested Order</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+    `;
+    
+    items.forEach(item => {
+        const urgencyClass = item.urgency_score >= 8 ? 'danger' : 
+                            item.urgency_score >= 6 ? 'warning' : 'info';
+        
+        html += `
+            <tr>
+                <td>
+                    <strong>${item.product_name}</strong>
+                </td>
+                <td>${item.category}</td>
+                <td>
+                    <span class="badge bg-${item.current_stock === 0 ? 'danger' : 'warning'}">
+                        ${item.current_stock}
+                    </span>
+                </td>
+                <td>${item.avg_daily_demand.toFixed(1)}</td>
+                <td>
+                    ${item.days_until_stockout === Infinity ? 'N/A' : Math.round(item.days_until_stockout) + ' days'}
+                </td>
+                <td>
+                    <span class="badge bg-${urgencyClass}">
+                        ${item.urgency_score.toFixed(1)}
+                    </span>
+                </td>
+                <td>
+                    <strong>${item.suggested_immediate_order}</strong>
+                    <br><small class="text-muted">$${item.cost_estimate.toFixed(0)}</small>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-success" 
+                            onclick="quickApprove(${item.product_id}, ${item.suggested_immediate_order})">
+                        <i class="fas fa-check"></i> Order Now
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+function loadSeasonalAnalysis() {
+    const container = document.getElementById('seasonalAnalysisContainer');
+    container.innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border text-info" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    `;
+    
+    fetch('/api/admin/ai/seasonal-analysis?months_ahead=3')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderSeasonalAnalysis(data.data);
+            } else {
+                showError('Failed to load seasonal analysis: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading seasonal analysis:', error);
+            showError('Failed to load seasonal analysis');
+        });
+}
+
+function renderSeasonalAnalysis(data) {
+    const container = document.getElementById('seasonalAnalysisContainer');
+    
+    if (!data.seasonal_analysis || Object.keys(data.seasonal_analysis).length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="fas fa-calendar-alt fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No Seasonal Data</h5>
+                <p class="text-muted">Insufficient historical data for seasonal analysis.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    
+    Object.entries(data.seasonal_analysis).forEach(([monthKey, monthData]) => {
+        html += `
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-calendar"></i> ${monthData.month}
+                        <span class="badge bg-info ms-2">${monthData.suggestions.length} products</span>
+                        ${monthData.high_impact_count > 0 ? 
+                            `<span class="badge bg-warning ms-1">${monthData.high_impact_count} high impact</span>` : ''}
+                    </h6>
+                </div>
+                <div class="card-body">
+        `;
+        
+        if (monthData.suggestions.length === 0) {
+            html += '<p class="text-muted">No seasonal adjustments needed for this month.</p>';
+        } else {
+            html += '<div class="row">';
+            monthData.suggestions.slice(0, 6).forEach(suggestion => {
+                html += `
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="card border-warning">
+                            <div class="card-body p-3">
+                                <h6 class="card-title">${suggestion.product_name}</h6>
+                                <p class="text-muted small mb-2">${suggestion.category}</p>
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <small class="text-muted">Seasonal Factor</small>
+                                        <div class="fw-bold text-warning">${suggestion.seasonal_factor.toFixed(2)}x</div>
+                                    </div>
+                                    <div>
+                                        <small class="text-muted">Suggested</small>
+                                        <div class="fw-bold">${suggestion.suggested_quantity}</div>
+                                    </div>
+                                </div>
+                                <small class="text-muted">
+                                    Prepare ${suggestion.preparation_time} days ahead
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            if (monthData.suggestions.length > 6) {
+                html += `<p class="text-muted">... and ${monthData.suggestions.length - 6} more products</p>`;
+            }
+        }
+        
+        html += '</div></div>';
+    });
+    
+    container.innerHTML = html;
+}
+
+function loadSupplierOptimization() {
+    const container = document.getElementById('supplierOptimizationContainer');
+    container.innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border text-warning" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    `;
+    
+    fetch('/api/admin/ai/supplier-optimization')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderSupplierOptimization(data.data);
+            } else {
+                showError('Failed to load supplier optimization: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading supplier optimization:', error);
+            showError('Failed to load supplier optimization');
+        });
+}
+
+function renderSupplierOptimization(data) {
+    const container = document.getElementById('supplierOptimizationContainer');
+    
+    if (data.optimization_recommendations.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="fas fa-truck fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No Optimization Opportunities</h5>
+                <p class="text-muted">Current ordering patterns are already optimized.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '<div class="row">';
+    
+    data.optimization_recommendations.forEach(rec => {
+        const cardClass = rec.bulk_order_potential ? 'border-success' : 'border-info';
+        
+        html += `
+            <div class="col-lg-6 mb-3">
+                <div class="card ${cardClass}">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-boxes"></i> ${rec.category}
+                            ${rec.bulk_order_potential ? 
+                                '<span class="badge bg-success ms-2">Bulk Opportunity</span>' : ''}
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <div class="text-center">
+                                    <div class="h4 mb-0">$${rec.total_investment.toLocaleString()}</div>
+                                    <small class="text-muted">Total Investment</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-center">
+                                    <div class="h4 mb-0">${rec.product_count}</div>
+                                    <small class="text-muted">Products</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        ${rec.urgent_items > 0 ? `
+                            <div class="alert alert-warning py-2">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                ${rec.urgent_items} urgent items in this category
+                            </div>
+                        ` : ''}
+                        
+                        <div class="bg-light p-2 rounded">
+                            <small class="text-muted">Recommendation:</small>
+                            <div>${rec.recommendation}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// Utility functions
+function getUrgencyColor(urgency) {
+    switch(urgency) {
+        case 'critical': return 'danger';
+        case 'high': return 'warning';
+        case 'medium': return 'info';
+        case 'low': return 'success';
+        default: return 'secondary';
+    }
+}
+
+function showLoadingState(elementId) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.classList.remove('d-none');
+    }
+}
+
+function hideLoadingState(elementId) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.classList.add('d-none');
+    }
+}
+
+function applyFilters() {
+    loadSuggestions();
+}
+
+function refreshSuggestions() {
+    initializeAISuggestions();
+}
+
+function showSuggestionDetails(suggestion) {
+    selectedSuggestion = suggestion;
+    
+    const content = document.getElementById('suggestionDetailsContent');
+    content.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Product Information</h6>
+                <table class="table table-sm">
+                    <tr><td>Name:</td><td><strong>${suggestion.product_name}</strong></td></tr>
+                    <tr><td>Category:</td><td>${suggestion.category}</td></tr>
+                    <tr><td>Current Stock:</td><td>${suggestion.current_stock}</td></tr>
+                    <tr><td>Predicted Demand:</td><td>${suggestion.predicted_demand}</td></tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6>AI Analysis</h6>
+                <table class="table table-sm">
+                    <tr><td>Confidence:</td><td>${(suggestion.confidence_score * 100).toFixed(1)}%</td></tr>
+                    <tr><td>Urgency:</td><td><span class="badge bg-${getUrgencyColor(suggestion.urgency_level)}">${suggestion.urgency_level}</span></td></tr>
+                    <tr><td>Suggested Quantity:</td><td><strong>${suggestion.suggested_quantity}</strong></td></tr>
+                    <tr><td>Estimated Cost:</td><td><strong>$${suggestion.cost_estimate.toFixed(2)}</strong></td></tr>
+                </table>
+            </div>
+        </div>
+        
+        <div class="mt-3">
+            <h6>Reasoning</h6>
+            <div class="bg-light p-3 rounded">
+                ${suggestion.reasoning}
+            </div>
+        </div>
+        
+        ${suggestion.seasonal_analysis ? `
+            <div class="mt-3">
+                <h6>Seasonal Analysis</h6>
+                <div class="bg-info bg-opacity-10 p-3 rounded">
+                    <p><strong>Trend:</strong> ${suggestion.seasonal_analysis.trend_analysis}</p>
+                    ${suggestion.seasonal_analysis.recommendations ? 
+                        '<p><strong>Recommendations:</strong></p><ul>' + 
+                        suggestion.seasonal_analysis.recommendations.map(rec => `<li>${rec}</li>`).join('') + 
+                        '</ul>' : ''}
+                </div>
+            </div>
+        ` : ''}
+    `;
+    
+    const modal = new bootstrap.Modal(document.getElementById('suggestionDetailsModal'));
+    modal.show();
+}
+
+function showModelInfo() {
+    fetch('/api/admin/ai/model-performance')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const content = document.getElementById('modelInfoContent');
+                const perf = data.data;
+                
+                content.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Model Statistics</h6>
+                            <table class="table table-sm">
+                                <tr><td>Total Predictions:</td><td>${perf.total_predictions}</td></tr>
+                                <tr><td>Average Accuracy:</td><td>${(perf.average_accuracy * 100).toFixed(1)}%</td></tr>
+                                <tr><td>Average Confidence:</td><td>${(perf.average_confidence * 100).toFixed(1)}%</td></tr>
+                                <tr><td>Average Error:</td><td>${perf.average_error.toFixed(1)} units</td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Confidence Breakdown</h6>
+                            <table class="table table-sm">
+                                <tr><td>High Confidence (≥80%):</td><td>${perf.confidence_breakdown.high_confidence.count} predictions</td></tr>
+                                <tr><td>Medium Confidence (60-80%):</td><td>${perf.confidence_breakdown.medium_confidence.count} predictions</td></tr>
+                                <tr><td>Low Confidence (<60%):</td><td>${perf.confidence_breakdown.low_confidence.count} predictions</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <h6>Model Version</h6>
+                        <p class="text-muted">${perf.model_version}</p>
+                    </div>
+                `;
+                
+                const modal = new bootstrap.Modal(document.getElementById('modelInfoModal'));
+                modal.show();
+            }
+        })
+        .catch(error => {
+            console.error('Error loading model info:', error);
+            showError('Failed to load model information');
+        });
+}
+
+function retrainModel() {
+    const modal = new bootstrap.Modal(document.getElementById('trainingModal'));
+    modal.show();
+    
+    fetch('/api/admin/ai/train-model', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ retrain: true })
+    })
+    .then(response => response.json())
+    .then(data => {
+        modal.hide();
+        
+        if (data.success) {
+            if (data.data.status === 'success') {
+                alert('Model retrained successfully!');
+                loadAIStatus();
+                refreshSuggestions();
+            } else {
+                alert('Training completed with status: ' + data.data.status);
+            }
+        } else {
+            showError('Training failed: ' + data.error);
+        }
+    })
+    .catch(error => {
+        modal.hide();
+        console.error('Error training model:', error);
+        showError('Failed to train model');
+    });
+}
+
+function quickApprove(productId, quantity) {
+    if (confirm(`Approve order of ${quantity} units for this product?`)) {
+        // This would integrate with your purchase order system
+        alert('Order approved! (Integration with purchase system needed)');
+    }
+}
+
+function approveSuggestion() {
+    if (selectedSuggestion) {
+        quickApprove(selectedSuggestion.product_id, selectedSuggestion.suggested_quantity);
+        const modal = bootstrap.Modal.getInstance(document.getElementById('suggestionDetailsModal'));
+        modal.hide();
+    }
+}
+
+function bulkApprove() {
+    const highConfidenceSuggestions = currentSuggestions.filter(s => s.confidence_score > 0.8);
+    
+    if (highConfidenceSuggestions.length === 0) {
+        alert('No high-confidence suggestions available for bulk approval.');
+        return;
+    }
+    
+    if (confirm(`Approve ${highConfidenceSuggestions.length} high-confidence suggestions?`)) {
+        alert('Bulk approval completed! (Integration with purchase system needed)');
+    }
+}
+
+function exportSuggestions() {
+    // This would generate and download a CSV/Excel file
+    alert('Export functionality would be implemented here');
+}
+
+function showError(message) {
+    document.getElementById('errorMessage').textContent = message;
+    const errorModal = new bootstrap.Modal(document.getElementById('errorModal'));
+    errorModal.show();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,395 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Details - {{ activity_summary.customer.full_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{{ url_for('customers.customer_list') }}">Customers</a></li>
+                            <li class="breadcrumb-item active">{{ activity_summary.customer.full_name }}</li>
+                        </ol>
+                    </nav>
+                    <h1 class="h3 mb-0">Customer Details</h1>
+                </div>
+                <div>
+                    {% if activity_summary.customer.is_active %}
+                        <button type="button" class="btn btn-outline-warning" onclick="deactivateCustomer({{ activity_summary.customer.id }})">
+                            <i class="fas fa-user-slash"></i> Deactivate
+                        </button>
+                    {% else %}
+                        <button type="button" class="btn btn-outline-success" onclick="reactivateCustomer({{ activity_summary.customer.id }})">
+                            <i class="fas fa-user-check"></i> Reactivate
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Customer Info Card -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <div class="avatar-lg bg-primary text-white rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3">
+                                <h3 class="mb-0">{{ activity_summary.customer.first_name[0] }}{{ activity_summary.customer.last_name[0] }}</h3>
+                            </div>
+                            <h4>{{ activity_summary.customer.full_name }}</h4>
+                            <p class="text-muted">{{ activity_summary.customer.email }}</p>
+                            <div class="row text-center">
+                                <div class="col-6">
+                                    <h6 class="text-muted">Status</h6>
+                                    {% if activity_summary.customer.is_active %}
+                                        <span class="badge badge-success">Active</span>
+                                    {% else %}
+                                        <span class="badge badge-danger">Inactive</span>
+                                    {% endif %}
+                                </div>
+                                <div class="col-6">
+                                    <h6 class="text-muted">Member Since</h6>
+                                    <small>{{ activity_summary.customer.created_at[:10] if activity_summary.customer.created_at else 'N/A' }}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Activity Summary -->
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Activity Summary (Last 90 Days)</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <h4 class="text-primary">{{ activity_summary.activity_summary.total_requests }}</h4>
+                                        <small class="text-muted">Total Requests</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <h4 class="text-success">{{ activity_summary.activity_summary.approved_requests }}</h4>
+                                        <small class="text-muted">Approved</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <h4 class="text-info">${{ "%.2f"|format(activity_summary.activity_summary.total_spent) }}</h4>
+                                        <small class="text-muted">Total Spent</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <h4 class="text-warning">{{ "%.1f"|format(activity_summary.activity_summary.approval_rate) }}%</h4>
+                                        <small class="text-muted">Approval Rate</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Purchase Patterns -->
+            {% if purchase_patterns.has_purchase_history %}
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Lifetime Metrics</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-6">
+                                    <h6 class="text-muted">Total Spent</h6>
+                                    <h4 class="text-success">${{ "%.2f"|format(purchase_patterns.lifetime_metrics.total_spent) }}</h4>
+                                </div>
+                                <div class="col-6">
+                                    <h6 class="text-muted">Total Purchases</h6>
+                                    <h4 class="text-primary">{{ purchase_patterns.lifetime_metrics.total_purchases }}</h4>
+                                </div>
+                                <div class="col-6">
+                                    <h6 class="text-muted">Avg Order Value</h6>
+                                    <h5>${{ "%.2f"|format(purchase_patterns.lifetime_metrics.average_order_value) }}</h5>
+                                </div>
+                                <div class="col-6">
+                                    <h6 class="text-muted">Purchase Frequency</h6>
+                                    <h5>{{ "%.1f"|format(purchase_patterns.lifetime_metrics.purchase_frequency_per_month) }}/month</h5>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Top Products</h5>
+                        </div>
+                        <div class="card-body">
+                            {% for product in purchase_patterns.top_products[:3] %}
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    <strong>{{ product.product_name }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ product.purchase_count }} purchases</small>
+                                </div>
+                                <div class="text-right">
+                                    <strong>${{ "%.2f"|format(product.total_spent) }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ product.quantity_purchased }} items</small>
+                                </div>
+                            </div>
+                            {% if not loop.last %}<hr>{% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Monthly Spending Chart -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Monthly Spending Trend</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="monthlySpendingChart" height="100"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Insights and Recommendations -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Customer Insights</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if insights.insights %}
+                                {% for insight in insights.insights %}
+                                <div class="alert alert-{% if insight.priority == 'high' %}warning{% elif insight.priority == 'medium' %}info{% else %}light{% endif %} mb-2">
+                                    <strong>{{ insight.type|replace('_', ' ')|title }}:</strong> {{ insight.message }}
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted">No specific insights available yet.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Recommendations</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if insights.recommendations %}
+                                {% for recommendation in insights.recommendations %}
+                                <div class="alert alert-success mb-2">
+                                    <strong>{{ recommendation.type|replace('_', ' ')|title }}:</strong> {{ recommendation.message }}
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted">No specific recommendations available.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Recent Requests</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if activity_summary.recent_requests %}
+                                {% for request in activity_summary.recent_requests %}
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
+                                        <strong>{{ request.product_name }}</strong>
+                                        <br>
+                                        <small class="text-muted">Qty: {{ request.quantity }} | {{ request.requested_at[:10] }}</small>
+                                    </div>
+                                    <div>
+                                        <span class="badge badge-{% if request.status == 'approved' %}success{% elif request.status == 'rejected' %}danger{% else %}warning{% endif %}">
+                                            {{ request.status|title }}
+                                        </span>
+                                    </div>
+                                </div>
+                                {% if not loop.last %}<hr>{% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted">No recent requests.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Recent Purchases</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if activity_summary.recent_purchases %}
+                                {% for purchase in activity_summary.recent_purchases %}
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
+                                        <strong>{{ purchase.product_name }}</strong>
+                                        <br>
+                                        <small class="text-muted">Qty: {{ purchase.quantity }} | {{ purchase.sale_date[:10] }}</small>
+                                    </div>
+                                    <div class="text-right">
+                                        <strong>${{ "%.2f"|format(purchase.total_amount) }}</strong>
+                                    </div>
+                                </div>
+                                {% if not loop.last %}<hr>{% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted">No recent purchases.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modals -->
+<div class="modal fade" id="deactivateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Deactivate Customer</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to deactivate <strong>{{ activity_summary.customer.full_name }}</strong>?</p>
+                <p class="text-muted">The customer will no longer be able to log in or make purchase requests.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deactivateForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-warning">Deactivate</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="reactivateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Reactivate Customer</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to reactivate <strong>{{ activity_summary.customer.full_name }}</strong>?</p>
+                <p class="text-muted">The customer will be able to log in and make purchase requests again.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="reactivateForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-success">Reactivate</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .avatar-lg {
+        width: 80px;
+        height: 80px;
+        font-size: 24px;
+        font-weight: bold;
+    }
+    
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        border: 1px solid rgba(0, 0, 0, 0.125);
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    function deactivateCustomer(customerId) {
+        const form = document.getElementById('deactivateForm');
+        form.action = `/admin/customers/${customerId}/deactivate`;
+        
+        const modal = new bootstrap.Modal(document.getElementById('deactivateModal'));
+        modal.show();
+    }
+    
+    function reactivateCustomer(customerId) {
+        const form = document.getElementById('reactivateForm');
+        form.action = `/admin/customers/${customerId}/reactivate`;
+        
+        const modal = new bootstrap.Modal(document.getElementById('reactivateModal'));
+        modal.show();
+    }
+    
+    // Monthly Spending Chart
+    {% if purchase_patterns.has_purchase_history and purchase_patterns.monthly_spending %}
+    const monthlyData = {{ purchase_patterns.monthly_spending | tojson }};
+    
+    const ctx = document.getElementById('monthlySpendingChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: monthlyData.map(item => item.month),
+            datasets: [{
+                label: 'Monthly Spending',
+                data: monthlyData.map(item => item.amount),
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toFixed(2);
+                        }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Spent: $' + context.parsed.y.toFixed(2);
+                        }
+                    }
+                }
+            }
+        }
+    });
+    {% endif %}
+</script>
+{% endblock %}

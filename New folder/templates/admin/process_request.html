@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}Process Request #{{ request.id }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Process Purchase Request #{{ request.id }}</h3>
+                </div>
+                <div class="card-body">
+                    <!-- Request Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h5>Customer Information</h5>
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <p><strong>Name:</strong> {{ request.customer.get_full_name() }}</p>
+                                    <p><strong>Email:</strong> {{ request.customer.email }}</p>
+                                    <p><strong>Role:</strong> {{ request.customer.role.title() }}</p>
+                                    <p><strong>Member Since:</strong> {{ request.customer.created_at.strftime('%Y-%m-%d') }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Product Information</h5>
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <p><strong>Product:</strong> {{ request.product.name }}</p>
+                                    <p><strong>Category:</strong> {{ request.product.category }}</p>
+                                    <p><strong>Unit Price:</strong> ${{ "%.2f"|format(request.product.selling_price) }}</p>
+                                    <p><strong>Available Stock:</strong> 
+                                        <span class="badge {% if request.product.is_out_of_stock() %}bg-danger{% elif request.product.is_low_stock() %}bg-warning{% else %}bg-success{% endif %}">
+                                            {{ request.product.quantity }} units
+                                        </span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Request Details -->
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <h5>Request Details</h5>
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>Requested Quantity:</strong> {{ request.quantity }} units</p>
+                                            <p><strong>Total Amount:</strong> ${{ "%.2f"|format(request.get_total_amount()) }}</p>
+                                            <p><strong>Current Status:</strong> 
+                                                {% if request.status == 'pending' %}
+                                                    <span class="badge bg-warning">Pending</span>
+                                                {% elif request.status == 'approved' %}
+                                                    <span class="badge bg-success">Approved</span>
+                                                {% elif request.status == 'rejected' %}
+                                                    <span class="badge bg-danger">Rejected</span>
+                                                {% endif %}
+                                            </p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Requested Date:</strong> {{ request.requested_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                                            {% if request.processed_at %}
+                                            <p><strong>Processed Date:</strong> {{ request.processed_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                                            {% endif %}
+                                            {% if request.admin %}
+                                            <p><strong>Processed By:</strong> {{ request.admin.get_full_name() }}</p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Stock Availability Check -->
+                    {% if request.can_be_processed() %}
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <h5>Stock Availability Analysis</h5>
+                            <div class="card {% if request.quantity > request.product.quantity %}border-danger{% else %}border-success{% endif %}">
+                                <div class="card-body">
+                                    {% if request.quantity > request.product.quantity %}
+                                    <div class="alert alert-danger">
+                                        <h6>⚠️ Insufficient Stock</h6>
+                                        <p>Requested quantity ({{ request.quantity }}) exceeds available stock ({{ request.product.quantity }}).</p>
+                                        <p>This request cannot be approved unless more stock is added to the product.</p>
+                                    </div>
+                                    {% else %}
+                                    <div class="alert alert-success">
+                                        <h6>✅ Stock Available</h6>
+                                        <p>Sufficient stock available to fulfill this request.</p>
+                                        <p>After approval, remaining stock will be: {{ request.product.quantity - request.quantity }} units</p>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Rejection Reason (if rejected) -->
+                    {% if request.status == 'rejected' and request.rejection_reason %}
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <h5>Rejection Reason</h5>
+                            <div class="alert alert-danger">
+                                {{ request.rejection_reason }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Processing Form -->
+                    {% if request.can_be_processed() %}
+                    <div class="row">
+                        <div class="col-md-12">
+                            <h5>Process Request</h5>
+                            <form method="POST">
+                                {{ form.hidden_tag() }}
+                                
+                                <div class="mb-3">
+                                    {{ form.action.label(class="form-label") }}
+                                    {{ form.action(class="form-select", id="actionSelect") }}
+                                    {% if form.action.errors %}
+                                        <div class="text-danger">
+                                            {% for error in form.action.errors %}
+                                                <small>{{ error }}</small><br>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="mb-3" id="rejectionReasonDiv" style="display: none;">
+                                    {{ form.rejection_reason.label(class="form-label") }}
+                                    {{ form.rejection_reason(class="form-control", rows="3", placeholder="Please provide a detailed reason for rejection...") }}
+                                    {% if form.rejection_reason.errors %}
+                                        <div class="text-danger">
+                                            {% for error in form.rejection_reason.errors %}
+                                                <small>{{ error }}</small><br>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- Warning for insufficient stock -->
+                                {% if request.quantity > request.product.quantity %}
+                                <div class="alert alert-warning" id="stockWarning">
+                                    <strong>Note:</strong> This request cannot be approved due to insufficient stock. 
+                                    You can only reject this request or add more stock to the product first.
+                                </div>
+                                {% endif %}
+                                
+                                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                    <a href="{{ url_for('admin_purchase_requests') }}" class="btn btn-secondary me-md-2">Back to List</a>
+                                    {{ form.submit(class="btn btn-primary", id="submitBtn") }}
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <h5>Request Already Processed</h5>
+                        <p>This request has already been processed and cannot be modified.</p>
+                    </div>
+                    <div class="text-center">
+                        <a href="{{ url_for('admin_purchase_requests') }}" class="btn btn-secondary">Back to List</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const actionSelect = document.getElementById('actionSelect');
+    const rejectionReasonDiv = document.getElementById('rejectionReasonDiv');
+    const submitBtn = document.getElementById('submitBtn');
+    const stockWarning = document.getElementById('stockWarning');
+    const hasInsufficientStock = {{ 'true' if request.quantity > request.product.quantity else 'false' }};
+    
+    function updateFormDisplay() {
+        const selectedAction = actionSelect.value;
+        
+        // Show/hide rejection reason field
+        if (selectedAction === 'reject') {
+            rejectionReasonDiv.style.display = 'block';
+        } else {
+            rejectionReasonDiv.style.display = 'none';
+        }
+        
+        // Handle insufficient stock scenario
+        if (hasInsufficientStock && selectedAction === 'approve') {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Cannot Approve - Insufficient Stock';
+            if (stockWarning) {
+                stockWarning.style.display = 'block';
+            }
+        } else {
+            submitBtn.disabled = false;
+            if (selectedAction === 'approve') {
+                submitBtn.textContent = 'Approve Request';
+                submitBtn.className = 'btn btn-success';
+            } else if (selectedAction === 'reject') {
+                submitBtn.textContent = 'Reject Request';
+                submitBtn.className = 'btn btn-danger';
+            } else {
+                submitBtn.textContent = 'Process Request';
+                submitBtn.className = 'btn btn-primary';
+            }
+            if (stockWarning && selectedAction !== 'approve') {
+                stockWarning.style.display = 'none';
+            }
+        }
+    }
+    
+    actionSelect.addEventListener('change', updateFormDisplay);
+    updateFormDisplay(); // Initial call
+    
+    // Form submission confirmation
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const action = actionSelect.value;
+        const requestId = {{ request.id }};
+        
+        let confirmMessage = '';
+        if (action === 'approve') {
+            confirmMessage = `Are you sure you want to approve request #${requestId}? This will reduce the product stock.`;
+        } else if (action === 'reject') {
+            confirmMessage = `Are you sure you want to reject request #${requestId}?`;
+        }
+        
+        if (confirmMessage && !confirm(confirmMessage)) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
+{% endblock %}

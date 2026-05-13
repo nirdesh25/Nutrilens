@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<style>
+    .admin-sidebar {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: calc(100vh - 76px);
+        box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+    }
+    
+    .admin-nav-link {
+        color: rgba(255, 255, 255, 0.8);
+        padding: 12px 20px;
+        margin: 2px 0;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+    }
+    
+    .admin-nav-link:hover {
+        color: white;
+        background: rgba(255, 255, 255, 0.1);
+        transform: translateX(5px);
+    }
+    
+    .admin-nav-link.active {
+        color: white;
+        background: rgba(255, 255, 255, 0.2);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    
+    .admin-nav-link i {
+        width: 20px;
+        margin-right: 10px;
+    }
+    
+    .admin-content {
+        background: #f8f9fa;
+        min-height: calc(100vh - 76px);
+        padding: 20px;
+    }
+    
+    .admin-header {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .admin-card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border: none;
+        transition: transform 0.2s ease;
+    }
+    
+    .admin-card:hover {
+        transform: translateY(-2px);
+    }
+    
+    .notification-badge {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background: #dc3545;
+        color: white;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+    }
+    
+    .admin-stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .admin-quick-action {
+        background: white;
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 15px;
+        text-align: center;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        color: #495057;
+        display: block;
+    }
+    
+    .admin-quick-action:hover {
+        border-color: #667eea;
+        color: #667eea;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+    }
+    
+    @media (max-width: 768px) {
+        .admin-sidebar {
+            min-height: auto;
+        }
+        
+        .admin-nav-link {
+            padding: 10px 15px;
+            margin: 1px 0;
+        }
+        
+        .admin-content {
+            padding: 15px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <div class="row g-0">
+        <!-- Admin Sidebar -->
+        <div class="col-lg-2 col-md-3">
+            <div class="admin-sidebar">
+                <div class="p-3">
+                    <div class="text-center mb-4">
+                        <div class="admin-stats-card">
+                            <h6 class="mb-1">Admin Portal</h6>
+                            <small>{{ current_user.first_name }} {{ current_user.last_name }}</small>
+                        </div>
+                    </div>
+                    
+                    <nav class="admin-nav">
+                        <a href="{{ url_for('admin_dashboard') }}" 
+                           class="admin-nav-link {{ 'active' if request.endpoint == 'analytics.dashboard_page' }}">
+                            <i class="fas fa-tachometer-alt"></i>
+                            Dashboard
+                        </a>
+                        
+                        <a href="{{ url_for('products.admin_product_list') }}" 
+                           class="admin-nav-link {{ 'active' if 'product' in request.endpoint }}">
+                            <i class="fas fa-boxes"></i>
+                            Products
+                        </a>
+                        
+                        <a href="{{ url_for('admin_purchase_requests') }}" 
+                           class="admin-nav-link {{ 'active' if 'purchase_request' in request.endpoint }} position-relative">
+                            <i class="fas fa-shopping-cart"></i>
+                            Purchase Requests
+                            {% if pending_requests_count and pending_requests_count > 0 %}
+                                <span class="notification-badge">{{ pending_requests_count }}</span>
+                            {% endif %}
+                        </a>
+                        
+                        <a href="{{ url_for('analytics.calendar_page') }}" 
+                           class="admin-nav-link {{ 'active' if request.endpoint == 'analytics.calendar_page' }}">
+                            <i class="fas fa-calendar-alt"></i>
+                            Sales Calendar
+                        </a>
+                        
+                        <a href="{{ url_for('ai.ai_suggestions_page') }}" 
+                           class="admin-nav-link {{ 'active' if 'ai' in request.endpoint }}">
+                            <i class="fas fa-robot"></i>
+                            AI Suggestions
+                        </a>
+                        
+                        <a href="{{ url_for('customers.customer_list') }}" 
+                           class="admin-nav-link {{ 'active' if 'customer' in request.endpoint }}">
+                            <i class="fas fa-users"></i>
+                            Customers
+                        </a>
+                        
+                        <a href="{{ url_for('alerts.alert_list') }}" 
+                           class="admin-nav-link {{ 'active' if 'alert' in request.endpoint }} position-relative">
+                            <i class="fas fa-bell"></i>
+                            Alerts
+                            {% if active_alerts_count and active_alerts_count > 0 %}
+                                <span class="notification-badge">{{ active_alerts_count }}</span>
+                            {% endif %}
+                        </a>
+                        
+                        <a href="{{ url_for('notifications.notification_preferences') }}" 
+                           class="admin-nav-link {{ 'active' if 'notification' in request.endpoint }}">
+                            <i class="fas fa-cog"></i>
+                            Settings
+                        </a>
+                        
+                        <hr class="my-3" style="border-color: rgba(255,255,255,0.2);">
+                        
+                        <a href="{{ url_for('index') }}" class="admin-nav-link">
+                            <i class="fas fa-home"></i>
+                            Home
+                        </a>
+                        
+                        <a href="{{ url_for('logout') }}" class="admin-nav-link">
+                            <i class="fas fa-sign-out-alt"></i>
+                            Logout
+                        </a>
+                    </nav>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content Area -->
+        <div class="col-lg-10 col-md-9">
+            <div class="admin-content">
+                <!-- Page Header -->
+                <div class="admin-header">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h1 class="h3 mb-1">{% block admin_title %}Admin Dashboard{% endblock %}</h1>
+                            <p class="text-muted mb-0">{% block admin_subtitle %}Manage your inventory system{% endblock %}</p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            {% block admin_actions %}
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+                                    <i class="fas fa-plus"></i> Quick Actions
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{{ url_for('products.add_product') }}">
+                                        <i class="fas fa-box"></i> Add Product
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('admin_purchase_requests') }}">
+                                        <i class="fas fa-tasks"></i> Process Requests
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('ai.ai_suggestions_page') }}">
+                                        <i class="fas fa-robot"></i> View AI Suggestions
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('analytics.dashboard_page') }}">
+                                        <i class="fas fa-chart-bar"></i> View Analytics
+                                    </a></li>
+                                </ul>
+                            </div>
+                            {% endblock %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Page Content -->
+                <div class="admin-page-content">
+                    {% block admin_content %}
+                    <!-- Default admin content goes here -->
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('products.admin_product_list') }}" class="admin-quick-action">
+                                <i class="fas fa-boxes fa-2x mb-2 d-block"></i>
+                                <h6>Manage Products</h6>
+                                <small class="text-muted">Add, edit, and organize inventory</small>
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('admin_purchase_requests') }}" class="admin-quick-action">
+                                <i class="fas fa-shopping-cart fa-2x mb-2 d-block"></i>
+                                <h6>Purchase Requests</h6>
+                                <small class="text-muted">Review and process orders</small>
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('analytics.calendar_page') }}" class="admin-quick-action">
+                                <i class="fas fa-calendar-alt fa-2x mb-2 d-block"></i>
+                                <h6>Sales Calendar</h6>
+                                <small class="text-muted">View sales patterns</small>
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('customers.customer_list') }}" class="admin-quick-action">
+                                <i class="fas fa-users fa-2x mb-2 d-block"></i>
+                                <h6>Customer Management</h6>
+                                <small class="text-muted">View customer activity</small>
+                            </a>
+                        </div>
+                    </div>
+                    {% endblock %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+$(document).ready(function() {
+    // Auto-refresh notification badges every 30 seconds
+    setInterval(function() {
+        updateNotificationBadges();
+    }, 30000);
+    
+    // Add smooth transitions to sidebar links
+    $('.admin-nav-link').on('click', function(e) {
+        if (!$(this).hasClass('active')) {
+            $(this).addClass('loading');
+        }
+    });
+    
+    // Initialize tooltips
+    $('[data-bs-toggle="tooltip"]').tooltip();
+});
+
+function updateNotificationBadges() {
+    fetch('/api/admin/notification-counts')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateBadge('pending_requests', data.data.pending_requests);
+                updateBadge('active_alerts', data.data.active_alerts);
+            }
+        })
+        .catch(error => {
+            console.log('Failed to update notification badges:', error);
+        });
+}
+
+function updateBadge(type, count) {
+    const badges = document.querySelectorAll(`.notification-badge`);
+    badges.forEach(badge => {
+        const link = badge.closest('.admin-nav-link');
+        if ((type === 'pending_requests' && link.href.includes('purchase-requests')) ||
+            (type === 'active_alerts' && link.href.includes('alerts'))) {
+            if (count > 0) {
+                badge.textContent = count;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

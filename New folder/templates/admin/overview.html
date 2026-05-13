@@ -1,0 +1,302 @@
+{% extends "admin/base_admin.html" %}
+
+{% block admin_title %}Admin Overview{% endblock %}
+{% block admin_subtitle %}Complete system overview and quick access to all admin functions{% endblock %}
+
+{% block admin_content %}
+<!-- System Status Cards -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card admin-card border-0">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Total Products</h6>
+                        <h3 class="mb-0">{{ stats.total_products if stats else 0 }}</h3>
+                        <small class="text-success">
+                            <i class="fas fa-arrow-up"></i> {{ stats.products_added_today if stats else 0 }} added today
+                        </small>
+                    </div>
+                    <div class="text-primary">
+                        <i class="fas fa-boxes fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card admin-card border-0">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Pending Requests</h6>
+                        <h3 class="mb-0">{{ stats.pending_requests if stats else 0 }}</h3>
+                        <small class="text-warning">
+                            <i class="fas fa-clock"></i> Requires attention
+                        </small>
+                    </div>
+                    <div class="text-warning">
+                        <i class="fas fa-shopping-cart fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card admin-card border-0">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Low Stock Items</h6>
+                        <h3 class="mb-0">{{ stats.low_stock_items if stats else 0 }}</h3>
+                        <small class="text-danger">
+                            <i class="fas fa-exclamation-triangle"></i> Need restocking
+                        </small>
+                    </div>
+                    <div class="text-danger">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card admin-card border-0">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Active Customers</h6>
+                        <h3 class="mb-0">{{ stats.active_customers if stats else 0 }}</h3>
+                        <small class="text-info">
+                            <i class="fas fa-users"></i> This month
+                        </small>
+                    </div>
+                    <div class="text-info">
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions Grid -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card admin-card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-bolt"></i> Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <a href="{{ url_for('products.add_product') }}" class="admin-quick-action">
+                            <i class="fas fa-plus-circle fa-3x mb-3 d-block text-success"></i>
+                            <h6>Add New Product</h6>
+                            <small class="text-muted">Add items to inventory</small>
+                        </a>
+                    </div>
+                    
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <a href="{{ url_for('admin_purchase_requests') }}" class="admin-quick-action position-relative">
+                            <i class="fas fa-tasks fa-3x mb-3 d-block text-warning"></i>
+                            <h6>Process Requests</h6>
+                            <small class="text-muted">Review pending orders</small>
+                            {% if stats and stats.pending_requests > 0 %}
+                                <span class="notification-badge">{{ stats.pending_requests }}</span>
+                            {% endif %}
+                        </a>
+                    </div>
+                    
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <a href="{{ url_for('ai.ai_suggestions_page') }}" class="admin-quick-action">
+                            <i class="fas fa-robot fa-3x mb-3 d-block text-primary"></i>
+                            <h6>AI Suggestions</h6>
+                            <small class="text-muted">View restocking recommendations</small>
+                        </a>
+                    </div>
+                    
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <a href="{{ url_for('analytics.dashboard_page') }}" class="admin-quick-action">
+                            <i class="fas fa-chart-bar fa-3x mb-3 d-block text-info"></i>
+                            <h6>View Analytics</h6>
+                            <small class="text-muted">Detailed performance metrics</small>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity and Alerts -->
+<div class="row mb-4">
+    <!-- Recent Activity -->
+    <div class="col-lg-8 mb-3">
+        <div class="card admin-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-clock"></i> Recent Activity
+                </h5>
+                <a href="{{ url_for('analytics.dashboard_page') }}" class="btn btn-sm btn-outline-primary">
+                    View All
+                </a>
+            </div>
+            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                {% if recent_activity %}
+                    {% for activity in recent_activity %}
+                        <div class="d-flex align-items-center mb-3 pb-2 border-bottom">
+                            <div class="me-3">
+                                {% if activity.type == 'sale' %}
+                                    <i class="fas fa-shopping-cart text-success fa-lg"></i>
+                                {% elif activity.type == 'request' %}
+                                    <i class="fas fa-clipboard-list text-warning fa-lg"></i>
+                                {% elif activity.type == 'product' %}
+                                    <i class="fas fa-box text-info fa-lg"></i>
+                                {% else %}
+                                    <i class="fas fa-info-circle text-muted fa-lg"></i>
+                                {% endif %}
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">{{ activity.title }}</h6>
+                                <p class="mb-0 text-muted small">{{ activity.description }}</p>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted">{{ activity.time_ago }}</small>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-clock fa-3x text-muted mb-3"></i>
+                        <h6 class="text-muted">No Recent Activity</h6>
+                        <p class="text-muted">System activity will appear here</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- System Alerts -->
+    <div class="col-lg-4 mb-3">
+        <div class="card admin-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-exclamation-triangle"></i> System Alerts
+                </h5>
+                <a href="{{ url_for('alerts.alert_list') }}" class="btn btn-sm btn-outline-warning">
+                    View All
+                </a>
+            </div>
+            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                {% if alerts %}
+                    {% for alert in alerts %}
+                        <div class="alert alert-{{ 'danger' if alert.severity == 'critical' else 'warning' if alert.severity == 'warning' else 'info' }} alert-sm mb-2">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong>{{ alert.title }}</strong>
+                                    <p class="mb-0 small">{{ alert.message }}</p>
+                                </div>
+                                <small class="text-muted">{{ alert.created_at.strftime('%H:%M') }}</small>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <h6 class="text-success">All Clear</h6>
+                        <p class="text-muted">No active alerts</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Health -->
+<div class="row">
+    <div class="col-12">
+        <div class="card admin-card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-heartbeat"></i> System Health
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 text-center">
+                        <div class="mb-3">
+                            <i class="fas fa-database fa-2x text-success mb-2"></i>
+                            <h6>Database</h6>
+                            <span class="badge bg-success">Healthy</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <div class="mb-3">
+                            <i class="fas fa-robot fa-2x text-primary mb-2"></i>
+                            <h6>AI Service</h6>
+                            <span class="badge bg-primary">Active</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <div class="mb-3">
+                            <i class="fas fa-bell fa-2x text-info mb-2"></i>
+                            <h6>Notifications</h6>
+                            <span class="badge bg-info">Enabled</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <div class="mb-3">
+                            <i class="fas fa-sync fa-2x text-warning mb-2"></i>
+                            <h6>Last Backup</h6>
+                            <span class="badge bg-warning">2 hours ago</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{{ super() }}
+<script>
+$(document).ready(function() {
+    // Auto-refresh overview data every 60 seconds
+    setInterval(function() {
+        refreshOverviewData();
+    }, 60000);
+    
+    // Add click tracking for quick actions
+    $('.admin-quick-action').on('click', function() {
+        const action = $(this).find('h6').text();
+        console.log('Quick action clicked:', action);
+    });
+});
+
+function refreshOverviewData() {
+    fetch('/api/admin/overview-data')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateOverviewStats(data.data);
+            }
+        })
+        .catch(error => {
+            console.log('Failed to refresh overview data:', error);
+        });
+}
+
+function updateOverviewStats(data) {
+    // Update stat cards with new data
+    // This would update the numbers in the stat cards
+    console.log('Updating overview stats:', data);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+
+{% block title %}Purchase History - Smart Inventory System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="fas fa-history"></i> Purchase History</h2>
+            <span class="badge bg-success fs-6">Customer Portal</span>
+        </div>
+        
+        <!-- Filter Section -->
+        <div class="search-filters">
+            <form method="GET" class="row g-3">
+                <div class="col-md-4">
+                    <label for="status" class="form-label">Filter by Status</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="">All Requests</option>
+                        <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                        <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
+                        <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Rejected</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="submit" class="btn btn-primary d-block w-100">
+                        <i class="fas fa-filter"></i> Filter
+                    </button>
+                </div>
+                <div class="col-md-6 text-end">
+                    <label class="form-label">&nbsp;</label>
+                    <div>
+                        <a href="{{ url_for('purchase_requests.customer_product_list') }}" class="btn btn-success">
+                            <i class="fas fa-plus"></i> Make New Request
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Purchase Requests Table -->
+        {% if requests %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list"></i> Your Purchase Requests
+                        <span class="badge bg-primary ms-2">{{ requests|length }} requests</span>
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Request #</th>
+                                    <th>Product</th>
+                                    <th>Quantity</th>
+                                    <th>Unit Price</th>
+                                    <th>Total Value</th>
+                                    <th>Status</th>
+                                    <th>Requested Date</th>
+                                    <th>Processed Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for request in requests %}
+                                    <tr>
+                                        <td>
+                                            <strong>#{{ request.id }}</strong>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                <strong>{{ request.product.name }}</strong>
+                                                <br>
+                                                <small class="text-muted">{{ request.product.category }}</small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info">{{ request.quantity }}</span>
+                                        </td>
+                                        <td>
+                                            ${{ "%.2f"|format(request.product.selling_price) }}
+                                        </td>
+                                        <td>
+                                            <strong>${{ "%.2f"|format(request.total_value) }}</strong>
+                                        </td>
+                                        <td>
+                                            {% if request.status == 'pending' %}
+                                                <span class="badge status-pending">
+                                                    <i class="fas fa-clock"></i> Pending
+                                                </span>
+                                            {% elif request.status == 'approved' %}
+                                                <span class="badge status-approved">
+                                                    <i class="fas fa-check"></i> Approved
+                                                </span>
+                                            {% elif request.status == 'rejected' %}
+                                                <span class="badge status-rejected">
+                                                    <i class="fas fa-times"></i> Rejected
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <small>
+                                                {{ request.requested_at.strftime('%Y-%m-%d') }}<br>
+                                                {{ request.requested_at.strftime('%H:%M') }}
+                                            </small>
+                                        </td>
+                                        <td>
+                                            {% if request.processed_at %}
+                                                <small>
+                                                    {{ request.processed_at.strftime('%Y-%m-%d') }}<br>
+                                                    {{ request.processed_at.strftime('%H:%M') }}
+                                                </small>
+                                            {% else %}
+                                                <small class="text-muted">Not processed</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group-vertical btn-group-sm">
+                                                <button class="btn btn-outline-info btn-sm" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#requestModal{{ request.id }}">
+                                                    <i class="fas fa-eye"></i> Details
+                                                </button>
+                                                {% if request.status == 'approved' %}
+                                                    <button class="btn btn-outline-success btn-sm" disabled>
+                                                        <i class="fas fa-download"></i> Invoice
+                                                    </button>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Request Detail Modals -->
+            {% for request in requests %}
+                <div class="modal fade" id="requestModal{{ request.id }}" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="fas fa-info-circle"></i> Request Details #{{ request.id }}
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Product Information</h6>
+                                        <table class="table table-sm">
+                                            <tr>
+                                                <td><strong>Name:</strong></td>
+                                                <td>{{ request.product.name }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Category:</strong></td>
+                                                <td>{{ request.product.category }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Description:</strong></td>
+                                                <td>{{ request.product.description or 'No description' }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Unit Price:</strong></td>
+                                                <td>${{ "%.2f"|format(request.product.selling_price) }}</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>Request Information</h6>
+                                        <table class="table table-sm">
+                                            <tr>
+                                                <td><strong>Quantity:</strong></td>
+                                                <td>{{ request.quantity }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Total Value:</strong></td>
+                                                <td><strong>${{ "%.2f"|format(request.total_value) }}</strong></td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Status:</strong></td>
+                                                <td>
+                                                    {% if request.status == 'pending' %}
+                                                        <span class="badge status-pending">Pending</span>
+                                                    {% elif request.status == 'approved' %}
+                                                        <span class="badge status-approved">Approved</span>
+                                                    {% elif request.status == 'rejected' %}
+                                                        <span class="badge status-rejected">Rejected</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td><strong>Requested:</strong></td>
+                                                <td>{{ request.requested_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                            </tr>
+                                            {% if request.processed_at %}
+                                                <tr>
+                                                    <td><strong>Processed:</strong></td>
+                                                    <td>{{ request.processed_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                                </tr>
+                                            {% endif %}
+                                            {% if request.processed_by_admin %}
+                                                <tr>
+                                                    <td><strong>Processed By:</strong></td>
+                                                    <td>{{ request.processed_by_admin.full_name }}</td>
+                                                </tr>
+                                            {% endif %}
+                                        </table>
+                                    </div>
+                                </div>
+                                
+                                {% if request.status == 'rejected' and request.rejection_reason %}
+                                    <div class="alert alert-warning">
+                                        <h6><i class="fas fa-exclamation-triangle"></i> Rejection Reason:</h6>
+                                        <p class="mb-0">{{ request.rejection_reason }}</p>
+                                    </div>
+                                {% endif %}
+                                
+                                {% if request.status == 'pending' %}
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle"></i>
+                                        Your request is currently being reviewed by our admin team. 
+                                        You will be notified once it's processed.
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                {% if request.status == 'rejected' %}
+                                    <a href="{{ url_for('purchase_requests.request_product', product_id=request.product_id) }}" 
+                                       class="btn btn-primary">
+                                        <i class="fas fa-redo"></i> Request Again
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+            
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
+                <h4 class="text-muted">No Purchase Requests Found</h4>
+                <p class="text-muted">
+                    {% if status_filter %}
+                        No requests found with the selected status filter.
+                    {% else %}
+                        You haven't made any purchase requests yet.
+                    {% endif %}
+                </p>
+                <div class="mt-3">
+                    {% if status_filter %}
+                        <a href="{{ url_for('purchase_requests.purchase_history') }}" class="btn btn-outline-primary me-2">
+                            <i class="fas fa-refresh"></i> Clear Filter
+                        </a>
+                    {% endif %}
+                    <a href="{{ url_for('purchase_requests.customer_product_list') }}" class="btn btn-success">
+                        <i class="fas fa-shopping-bag"></i> Browse Products
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+$(document).ready(function() {
+    // Auto-refresh pending requests every 30 seconds
+    {% if status_filter == 'pending' or not status_filter %}
+        setInterval(function() {
+            // Only refresh if there are pending requests
+            if ($('.status-pending').length > 0) {
+                location.reload();
+            }
+        }, 30000);
+    {% endif %}
+    
+    // Add tooltips to status badges
+    $('[data-bs-toggle="tooltip"]').tooltip();
+});
+</script>
+{% endblock %}

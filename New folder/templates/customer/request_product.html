@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Request Product - {{ product.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Request Product</h3>
+                </div>
+                <div class="card-body">
+                    <!-- Product Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <h4>{{ product.name }}</h4>
+                            <p class="text-muted">{{ product.description or 'No description available' }}</p>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <strong>Category:</strong> {{ product.category }}<br>
+                                    <strong>Price:</strong> ${{ "%.2f"|format(product.selling_price) }}<br>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Available Stock:</strong> 
+                                    <span class="badge {% if product.is_out_of_stock() %}bg-danger{% elif product.is_low_stock() %}bg-warning{% else %}bg-success{% endif %}">
+                                        {{ product.quantity }} units
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if product.is_out_of_stock() %}
+                    <div class="alert alert-danger">
+                        <h5>Out of Stock</h5>
+                        <p>This product is currently out of stock. Please check back later or contact an administrator.</p>
+                    </div>
+                    <div class="text-center">
+                        <a href="{{ url_for('purchase_requests.customer_product_list') }}" class="btn btn-secondary">Back to Products</a>
+                    </div>
+                    {% else %}
+                    
+                    <!-- Purchase Request Form -->
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="mb-3">
+                            {{ form.quantity.label(class="form-label") }}
+                            {{ form.quantity(class="form-control", max=product.quantity) }}
+                            {% if form.quantity.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.quantity.errors %}
+                                        <small>{{ error }}</small><br>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">
+                                Maximum available: {{ product.quantity }} units
+                            </div>
+                        </div>
+                        
+                        <!-- Total Calculation -->
+                        <div class="mb-3">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6>Request Summary</h6>
+                                    <div class="row">
+                                        <div class="col-6">Product:</div>
+                                        <div class="col-6">{{ product.name }}</div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-6">Unit Price:</div>
+                                        <div class="col-6">${{ "%.2f"|format(product.selling_price) }}</div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-6">Quantity:</div>
+                                        <div class="col-6"><span id="display-quantity">1</span> units</div>
+                                    </div>
+                                    <hr>
+                                    <div class="row">
+                                        <div class="col-6"><strong>Total Amount:</strong></div>
+                                        <div class="col-6"><strong>$<span id="total-amount">{{ "%.2f"|format(product.selling_price) }}</span></strong></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('purchase_requests.customer_product_list') }}" class="btn btn-secondary me-md-2">Cancel</a>
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const quantityInput = document.getElementById('quantity');
+    const displayQuantity = document.getElementById('display-quantity');
+    const totalAmount = document.getElementById('total-amount');
+    const unitPrice = {{ product.selling_price }};
+    
+    function updateTotal() {
+        const quantity = parseInt(quantityInput.value) || 0;
+        const total = quantity * unitPrice;
+        
+        displayQuantity.textContent = quantity;
+        totalAmount.textContent = total.toFixed(2);
+    }
+    
+    if (quantityInput) {
+        quantityInput.addEventListener('input', updateTotal);
+        updateTotal(); // Initial calculation
+    }
+});
+</script>
+{% endblock %}

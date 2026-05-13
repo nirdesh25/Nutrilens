@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}Browse Products - Smart Inventory System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="fas fa-shopping-bag"></i> Browse Products</h2>
+            <span class="badge bg-success fs-6">Customer Portal</span>
+        </div>
+        
+        <!-- Search and Filter Section -->
+        <div class="search-filters">
+            <form method="GET" class="row g-3">
+                <div class="col-md-6">
+                    <label for="search" class="form-label">Search Products</label>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="{{ search }}" placeholder="Search by name or description...">
+                </div>
+                <div class="col-md-4">
+                    <label for="category" class="form-label">Category</label>
+                    <select class="form-select" id="category" name="category">
+                        <option value="">All Categories</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat }}" {% if cat == selected_category %}selected{% endif %}>
+                                {{ cat }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="submit" class="btn btn-primary d-block w-100">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Products Grid -->
+        {% if products %}
+            <div class="row">
+                {% for product in products %}
+                    <div class="col-md-4 mb-4">
+                        <div class="card product-card h-100">
+                            <div class="product-image">
+                                <i class="fas fa-box"></i>
+                            </div>
+                            <div class="card-body d-flex flex-column">
+                                <h5 class="card-title">{{ product.name }}</h5>
+                                <p class="card-text text-muted flex-grow-1">
+                                    {{ product.description or 'No description available' }}
+                                </p>
+                                <div class="product-details mb-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="product-price">${{ "%.2f"|format(product.selling_price) }}</span>
+                                        <span class="badge bg-secondary product-category">{{ product.category }}</span>
+                                    </div>
+                                    <div class="product-stock mt-2">
+                                        {% if product.quantity > 0 %}
+                                            {% if product.is_low_stock() %}
+                                                <span class="text-warning">
+                                                    <i class="fas fa-exclamation-triangle"></i> 
+                                                    Only {{ product.quantity }} left
+                                                </span>
+                                            {% else %}
+                                                <span class="text-success">
+                                                    <i class="fas fa-check-circle"></i> 
+                                                    {{ product.quantity }} in stock
+                                                </span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-danger">
+                                                <i class="fas fa-times-circle"></i> 
+                                                Out of stock
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                {% if product.quantity > 0 %}
+                                    <!-- Quick Purchase Request Form -->
+                                    <form class="quick-purchase-form" data-product-id="{{ product.id }}">
+                                        <input type="hidden" name="product_id" value="{{ product.id }}">
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" name="quantity" 
+                                                   min="1" max="{{ product.quantity }}" value="1" required>
+                                            <button type="submit" class="btn btn-success">
+                                                <i class="fas fa-shopping-cart"></i> Request
+                                            </button>
+                                        </div>
+                                    </form>
+                                    
+                                    <!-- Detailed Request Button -->
+                                    <div class="mt-2">
+                                        <a href="{{ url_for('purchase_requests.request_product', product_id=product.id) }}" 
+                                           class="btn btn-outline-primary btn-sm w-100">
+                                            <i class="fas fa-info-circle"></i> View Details & Request
+                                        </a>
+                                    </div>
+                                {% else %}
+                                    <button class="btn btn-secondary" disabled>
+                                        <i class="fas fa-ban"></i> Out of Stock
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                <h4 class="text-muted">No Products Found</h4>
+                <p class="text-muted">
+                    {% if search or selected_category %}
+                        No products match your search criteria. Try adjusting your filters.
+                    {% else %}
+                        No products are currently available in the inventory.
+                    {% endif %}
+                </p>
+                {% if search or selected_category %}
+                    <a href="{{ url_for('purchase_requests.customer_product_list') }}" class="btn btn-primary">
+                        <i class="fas fa-refresh"></i> Clear Filters
+                    </a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Quick Request Success Modal -->
+<div class="modal fade" id="requestSuccessModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-check-circle"></i> Request Submitted
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Your purchase request has been submitted successfully!</p>
+                <p>You can track the status of your request in your purchase history.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Continue Shopping</button>
+                <a href="{{ url_for('purchase_requests.purchase_history') }}" class="btn btn-primary">
+                    <i class="fas fa-history"></i> View Purchase History
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+$(document).ready(function() {
+    // Enhanced quick purchase functionality
+    $('.quick-purchase-form').on('submit', function(e) {
+        e.preventDefault();
+        
+        var form = $(this);
+        var productId = form.find('input[name="product_id"]').val();
+        var quantity = form.find('input[name="quantity"]').val();
+        var button = form.find('button[type="submit"]');
+        var originalText = button.html();
+        
+        // Validate quantity
+        var maxQuantity = parseInt(form.find('input[name="quantity"]').attr('max'));
+        if (parseInt(quantity) > maxQuantity) {
+            InventorySystem.showAlert('error', 'Requested quantity exceeds available stock');
+            return;
+        }
+        
+        // Disable button and show loading
+        button.prop('disabled', true).html('<span class="loading-spinner"></span> Submitting...');
+        
+        $.ajax({
+            url: '/api/products/' + productId + '/quick-request',
+            method: 'POST',
+            data: {
+                quantity: quantity
+            },
+            success: function(response) {
+                if (response.success) {
+                    InventorySystem.showAlert('success', response.message);
+                    form[0].reset();
+                    
+                    // Update stock display
+                    var card = form.closest('.card');
+                    var stockElement = card.find('.product-stock');
+                    // You might want to refresh the page or update stock dynamically
+                    
+                } else {
+                    InventorySystem.showAlert('error', response.error || 'An error occurred');
+                }
+            },
+            error: function(xhr) {
+                var errorMsg = 'An error occurred';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMsg = xhr.responseJSON.error;
+                }
+                InventorySystem.showAlert('error', errorMsg);
+            },
+            complete: function() {
+                button.prop('disabled', false).html(originalText);
+            }
+        });
+    });
+    
+    // Real-time search
+    let searchTimeout;
+    $('#search').on('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(function() {
+            $('#search').closest('form').submit();
+        }, 500);
+    });
+});
+</script>
+{% endblock %}
