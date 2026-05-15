@@ -1,0 +1,28 @@
+# NutriLens AI Docker ignore — keeps images lean
+# ──────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.env
+*.db
+*.sqlite3
+
+# ML model binaries (mount via Docker volumes instead)
+ml_models/*.h5
+ml_models/*.pkl
+ml_models/*.pt
+
+# Dev / test artifacts
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# OS
+.DS_Store
+Thumbs.db

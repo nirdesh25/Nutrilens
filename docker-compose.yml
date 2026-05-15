@@ -1,0 +1,72 @@
+version: '3.9'
+
+services:
+  # ──────────────────────────────────────────────
+  # FastAPI Backend
+  # ──────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nutrilens_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///./nutrilens.db}
+      - SECRET_KEY=${SECRET_KEY}
+      - ALGORITHM=${ALGORITHM:-HS256}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - FRESHNESS_MODEL_PATH=${FRESHNESS_MODEL_PATH:-./ml_models/freshness_model.h5}
+      - FOOD_RECOGNITION_MODEL_PATH=${FOOD_RECOGNITION_MODEL_PATH:-./ml_models/food_recognition_model.h5}
+      - WASTE_MODEL_PATH=${WASTE_MODEL_PATH:-./ml_models/waste_model.h5}
+    volumes:
+      # Persist SQLite database and trained ML models across restarts
+      - nutrilens_db:/app/nutrilens.db
+      - nutrilens_models:/app/ml_models
+      - nutrilens_datasets:/app/datasets
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - nutrilens_net
+
+  # ──────────────────────────────────────────────
+  # Next.js Frontend
+  # ──────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    container_name: nutrilens_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - nutrilens_net
+
+# ──────────────────────────────────────────────
+# Named Volumes (persist data across container restarts)
+# ──────────────────────────────────────────────
+volumes:
+  nutrilens_db:
+  nutrilens_models:
+  nutrilens_datasets:
+
+# ──────────────────────────────────────────────
+# Internal network
+# ──────────────────────────────────────────────
+networks:
+  nutrilens_net:
+    driver: bridge

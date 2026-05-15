@@ -1,0 +1,50 @@
+NUTRILENS AI - STARTUP INSTRUCTIONS
+====================================
+
+IMPORTANT: You need TWO terminal windows open at the same time!
+
+STEP 1: Start Frontend Server
+------------------------------
+1. Open PowerShell or Command Prompt
+2. Run these commands:
+   cd "nutrilens-ai/frontend"
+   npm run dev
+
+3. Wait until you see: "Ready in X.Xs"
+4. KEEP THIS WINDOW OPEN - Do NOT close it!
+
+STEP 2: Start Backend Server (Optional - for API features)
+-----------------------------------------------------------
+1. Open a NEW PowerShell or Command Prompt window
+2. Run these commands:
+   cd "nutrilens-ai/backend"
+   python main.py
+
+3. Wait until you see: "Application startup complete"
+4. KEEP THIS WINDOW OPEN - Do NOT close it!
+
+STEP 3: Open Browser
+--------------------
+Go to: http://localhost:3000
+
+TROUBLESHOOTING:
+----------------
+- If you see "refused to connect": The frontend server is not running
+- If the home page loads but other pages don't work: The backend server is not running
+- Both terminal windows must stay open while using the application
+- To stop: Press Ctrl+C in each terminal window
+
+WHAT WORKS WITHOUT BACKEND:
+---------------------------
+- Home page (landing page)
+- Login page (UI only, won't actually log in)
+- Register page (UI only, won't actually register)
+
+WHAT NEEDS BACKEND:
+-------------------
+- Actual login/register functionality
+- Dashboard and all feature pages
+- API calls for data
+
+NOTE: The frontend server starts quickly. The backend may take 10-15 seconds to start
+because it needs to load TensorFlow and other ML libraries.
